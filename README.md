@@ -1,36 +1,40 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# almera storefront: design prototype
 
-## Getting Started
+A front-end prototype of an online store for **almera, The Desi Wardrobe** ([@almera.lk](https://www.instagram.com/almera.lk/)), a Sri Lankan Instagram boutique selling Pakistani lawn suits, shalwar kameez and lehengas.
 
-First, run the development server:
+Built with Next.js 16 (App Router, Cache Components) and Tailwind CSS 4. Every page is prerendered to static HTML, with per-page metadata, Product JSON-LD, a sitemap and robots.txt for SEO.
+
+## Run it
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open http://localhost:3000. For the client meeting, open it on a phone or use the browser's mobile view, since most of their customers shop on mobile.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## What's in the prototype
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Page | Route |
+| --- | --- |
+| Home, with the wardrobe-door hero | `/` |
+| Shop all, with filters and sort | `/shop` |
+| Category pages | `/shop/lawn`, `/shop/shalwar-kameez`, `/shop/lehengas` |
+| Product page (stitched/unstitched, sizes, size guide) | `/product/[slug]` |
+| Bag drawer | any page, via the bag icon |
+| Checkout (COD / bank transfer, Sri Lankan districts) | `/checkout` |
+| Order confirmation | `/order-confirmed` |
+| Our story, Help (delivery, sizing, policy, FAQ), Contact | `/about`, `/help`, `/contact` |
 
-## Learn More
+## Design notes
 
-To learn more about Next.js, take a look at the following resources:
+- **Palette** is taken from almera's logo: sage `#9db7a8`, olive `#5e5c30`, gold `#a9813f`, ivory `#faf8f2`, bark `#5b3d2a`. Tokens live in `src/app/globals.css`.
+- **Type:** Bodoni Moda in lowercase, echoing the logo's wordmark, with Hanken Grotesk for body text.
+- **Signature:** the arched wardrobe from the logo. Product images sit in arch frames, and the homepage hero opens like wardrobe doors on load (turned off for visitors who prefer reduced motion).
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Placeholder content to replace before launch
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- **Photos** are free Unsplash stock images loaded from Unsplash's CDN (`src/lib/image-loader.ts`). Replace them with almera's own shoots.
+- **Products, prices, stock, delivery fees**, the free-delivery threshold, the stitching fee and the size chart are all sample data in `src/lib/catalog.ts` and `src/components/size-guide.tsx`.
+- **Client reviews** on the homepage are written examples. Use real feedback from their Instagram highlights.
+- **Checkout** doesn't send orders anywhere yet. It saves the order in the browser to show the confirmation page. The backend, admin and payments are the development phase.
