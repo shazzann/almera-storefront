@@ -16,11 +16,6 @@ const NOTES = [
   { quote: "My walima lehenga was exactly the colour I was shown. They answered every question on WhatsApp the same day.", name: "Aathika", city: "Batticaloa" },
 ];
 
-const STEPS = [
-  { title: "Choose and check out", body: "Pick stitched or unstitched, then pay by cash on delivery or bank transfer." },
-  { title: "We confirm with you", body: "We call or WhatsApp within a day to check your order and sizing." },
-  { title: "Packed by hand, delivered", body: "Your order is dispatched island-wide and reaches you in 2–4 working days." },
-];
 
 export default function Home() {
   return (
@@ -96,9 +91,6 @@ export default function Home() {
             <h2 id="bridal" className="display mt-4 text-5xl sm:text-6xl">
               for the nikah, the mehndi <em className="text-sage">&amp; the walima</em>
             </h2>
-            <p className="mt-5 max-w-md leading-relaxed text-ivory/70">
-              Each lehenga is checked by hand before it leaves us. Most bridal pieces are one of a kind, so once one is gone it won’t be restocked.
-            </p>
             <div className="mt-10 grid grid-cols-3 gap-3">
               {lehengas.map((p) => (
                 <Link key={p.slug} href={`/product/${p.slug}`} className="group">
@@ -130,21 +122,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* How ordering works */}
-      <section className="bg-sage-soft py-16 sm:py-20" aria-labelledby="how">
-        <div className="mx-auto max-w-7xl px-4 sm:px-8">
-          <SectionHead eyebrow="Ordering with almera" title={<>from our wardrobe <em>to yours</em></>} id="how" />
-          <ol className="mt-10 grid gap-4 md:grid-cols-3 md:gap-6">
-            {STEPS.map((s, i) => (
-              <li key={s.title} className="rounded-[1.5rem] bg-ivory p-6 sm:p-8">
-                <span className="display text-5xl text-gold">{i + 1}</span>
-                <h3 className="mt-4 text-lg font-semibold">{s.title}</h3>
-                <p className="mt-2 leading-relaxed text-ink/70">{s.body}</p>
-              </li>
-            ))}
-          </ol>
-        </div>
-      </section>
 
       {/* Client notes */}
       <section className="py-16 sm:py-24" aria-labelledby="notes">
