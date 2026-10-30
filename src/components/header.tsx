@@ -20,6 +20,7 @@ const NAV = [
   { href: "/shop/lawns", label: "Lawns" },
   { href: "/shop/occasion", label: "Occasion" },
 ];
+const menuRow = "display flex min-h-15 items-center justify-between gap-4 text-[1.6rem] transition-colors hover:text-sage-deep";
 const navLink = "text-[0.72rem] font-semibold tracking-[0.16em] uppercase transition-colors hover:text-sage-deep";
 
 function AnnouncementBar() {
@@ -148,44 +149,45 @@ export function Header() {
       </header>
 
       <Sheet open={menuOpen} onClose={closeMenu} side="left" title="almera">
-        <nav className="px-5 py-6" aria-label="Mobile">
-          <button
-            onClick={() => setCategoriesOpen((o) => !o)}
-            aria-expanded={categoriesOpen}
-            aria-controls="menu-categories"
-            className="flex min-h-14 w-full items-center justify-between gap-4 rounded-2xl pr-3 text-left"
-          >
-            <span className="display text-[1.9rem]">categories</span>
-            <ChevronIcon className={`size-4 transition-transform duration-300 ${categoriesOpen ? "-rotate-90" : "rotate-90"}`} />
-          </button>
-          <div id="menu-categories" className={`grid transition-[grid-template-rows,visibility] duration-300 ${categoriesOpen ? "visible grid-rows-[1fr]" : "invisible grid-rows-[0fr]"}`}>
-            <ul className="min-h-0 space-y-1 overflow-hidden">
-              {categories.map((c) => (
-                <li key={c.slug}>
-                  <Link href={`/shop/${c.slug}`} onNavigate={closeMenu} className="group flex items-center gap-4 rounded-2xl p-1.5 pr-3 hover:bg-mist">
-                    <span className="arch relative h-14 w-11 shrink-0 overflow-hidden bg-sage-soft">
-                      <Image src={c.image} alt="" fill sizes="44px" className="object-cover" />
-                    </span>
-                    <span className="display flex-1 text-[1.45rem]">{c.name}</span>
-                    <ArrowIcon className="size-4 opacity-40 transition group-hover:translate-x-1 group-hover:opacity-100" />
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-          <Link href="/shop" onNavigate={closeMenu} className="btn btn-primary mt-6 w-full">
-            Shop all new arrivals
-          </Link>
-          <ul className="mt-8 space-y-1 border-t border-line pt-6 text-[0.95rem]">
+        <nav className="px-5 py-2" aria-label="Mobile">
+          <ul className="divide-y divide-line border-b border-line">
+            <li>
+              <Link href="/" onNavigate={closeMenu} className={menuRow}>home</Link>
+            </li>
+            <li>
+              <button
+                onClick={() => setCategoriesOpen((o) => !o)}
+                aria-expanded={categoriesOpen}
+                aria-controls="menu-categories"
+                className={`${menuRow} w-full text-left`}
+              >
+                categories
+                <ChevronIcon className={`size-4 transition-transform duration-300 ${categoriesOpen ? "-rotate-90" : "rotate-90"}`} />
+              </button>
+              <div id="menu-categories" className={`grid transition-[grid-template-rows,visibility] duration-300 ${categoriesOpen ? "visible grid-rows-[1fr]" : "invisible grid-rows-[0fr]"}`}>
+                <ul className="min-h-0 space-y-1 overflow-hidden">
+                  {categories.map((c) => (
+                    <li key={c.slug} className="last:pb-3">
+                      <Link href={`/shop/${c.slug}`} onNavigate={closeMenu} className="group flex items-center gap-4 rounded-2xl p-1.5 pr-0 hover:bg-mist">
+                        <span className="arch relative h-14 w-11 shrink-0 overflow-hidden bg-sage-soft">
+                          <Image src={c.image} alt="" fill sizes="44px" className="object-cover" />
+                        </span>
+                        <span className="display flex-1 text-[1.3rem]">{c.name}</span>
+                        <ArrowIcon className="size-4 opacity-40 transition group-hover:translate-x-1 group-hover:opacity-100" />
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </li>
             {[
-              ["/about", "Our story"],
-              ["/help", "Delivery, sizing & FAQ"],
-              ["/contact", "Contact us"],
+              ["/shop", "new arrivals"],
+              ["/about", "our story"],
+              ["/help", "delivery, sizing & faq"],
+              ["/contact", "contact us"],
             ].map(([href, label]) => (
               <li key={href}>
-                <Link href={href} onNavigate={closeMenu} className="block py-2.5 hover:text-sage-deep">
-                  {label}
-                </Link>
+                <Link href={href} onNavigate={closeMenu} className={menuRow}>{label}</Link>
               </li>
             ))}
           </ul>

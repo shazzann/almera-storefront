@@ -40,14 +40,11 @@ export function WardrobeHero({ image }: { image: string }) {
             the wardrobe <br /><em className="text-sage-deep">is open</em>
           </h1>
           <p className="mt-5 max-w-md animate-rise text-[1.02rem] leading-relaxed text-ink/75" style={{ animationDelay: "1.10s" }}>
-            Pakistani lawn suits, ready-to-wear shalwar kameez and lehengas. Order stitched or unstitched, with delivery anywhere in Sri Lanka.
+            From everyday lawn to bridal lehengas, delivered anywhere in Sri Lanka.
           </p>
           <div className="mt-8 flex animate-rise flex-col gap-3 sm:flex-row" style={{ animationDelay: "1.25s" }}>
             <Link href="/shop" className="btn btn-primary">
               Shop new arrivals <ArrowIcon className="size-4" />
-            </Link>
-            <Link href="/shop/occasion" className="btn btn-ghost">
-              Shop occasion wear
             </Link>
           </div>
         </div>
