@@ -102,6 +102,19 @@
   .arch-soft {
     border-radius: 50% 50% 0.9rem 0.9rem / 24% 24% 0.9rem 0.9rem;
   }
+  /* Melts a photo into the dark panel beside it. Eased stops avoid a visible band. */
+  .fade-into-ink {
+    --ink-fade: rgb(43 45 29 / 1) 0%, rgb(43 45 29 / 0.92) 10%, rgb(43 45 29 / 0.74) 24%, rgb(43 45 29 / 0.48) 42%,
+      rgb(43 45 29 / 0.22) 62%, rgb(43 45 29 / 0.06) 82%, rgb(43 45 29 / 0) 100%;
+    background: linear-gradient(to top, var(--ink-fade)) bottom / 100% 42% no-repeat;
+  }
+  @media (min-width: 64rem) {
+    .fade-into-ink {
+      background:
+        linear-gradient(to left, var(--ink-fade)) right / 45% 100% no-repeat,
+        linear-gradient(to right, var(--ink-fade)) left / 18% 100% no-repeat;
+    }
+  }
   .no-scrollbar {
     scrollbar-width: none;
   }

@@ -71,8 +71,9 @@ export default function Home() {
         <div className="mx-auto grid max-w-7xl lg:grid-cols-2">
           <div className="relative aspect-[4/5] lg:aspect-auto lg:min-h-[44rem]">
             <Image src={editorial.bridal} alt="Bride in a rose lehenga standing in an arched doorway" fill sizes="(min-width: 1024px) 50vw, 100vw" className="object-cover" />
+            <div aria-hidden className="fade-into-ink absolute inset-0" />
           </div>
-          <div className="flex flex-col justify-center px-5 py-14 sm:px-12 lg:px-16">
+          <div className="relative flex flex-col justify-center px-5 pt-2 pb-14 sm:px-12 lg:px-16 lg:py-14">
             <p className="eyebrow text-sage">The lehenga edit</p>
             <h2 id="bridal" className="display mt-4 text-5xl sm:text-6xl">
               for the nikah, the mehndi <em className="text-sage">&amp; the walima</em>
