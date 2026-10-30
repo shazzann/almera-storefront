@@ -1,6 +1,7 @@
 "use client";
 
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { createBrowserClient } from "@supabase/ssr";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 let _client: SupabaseClient | null = null;
 
@@ -11,7 +12,6 @@ export function getSupabaseBrowserClient(): SupabaseClient | null {
   if (!url || !key || url.includes("your-project-id") || key.endsWith("...")) {
     return null;
   }
-  _client = createClient(url, key);
+  _client = createBrowserClient(url, key);
   return _client;
 }
-

@@ -4,6 +4,11 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import {
+  getCheckoutCustomerDataAction,
+  upsertCustomerAddressAction,
+  type CustomerAddressRecord,
+} from "@/actions/auth";
 import { getPublicCouponsAction, placeOrderAction } from "@/actions/orders";
 import { DELIVERY, DISTRICTS, formatLKR, type DeliveryMethod } from "@/lib/catalog";
 import { cart, linePrice, totals, useCart, type CartLine } from "@/lib/cart";
@@ -85,6 +90,54 @@ export function CheckoutForm() {
 
   // Idempotency key generated lazily on first submission attempt
   const idempotencyKeyRef = useRef<string | null>(null);
+
+  // Customer authentication & pre-fill state
+  const [customerData, setCustomerData] = useState<{
+    user: { id: string; email: string };
+    profile: {
+      full_name?: string;
+      phone?: string;
+      default_shipping_address?: string;
+      default_shipping_city?: string;
+      default_shipping_district?: string;
+    };
+    addresses: CustomerAddressRecord[];
+  } | null>(null);
+  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
+  const [saveAddressToAccount, setSaveAddressToAccount] = useState(false);
+
+  useEffect(() => {
+    getCheckoutCustomerDataAction()
+      .then((data) => {
+        if (!data) return;
+        setCustomerData(data);
+        const def =
+          data.addresses.find((a) => a.is_default) || data.addresses[0];
+        if (def) {
+          setSelectedAddressId(def.id);
+          setForm((f) => ({
+            ...f,
+            name: f.name || def.recipient_name || data.profile?.full_name || "",
+            phone: f.phone || def.phone || data.profile?.phone || "",
+            email: f.email || data.user.email || "",
+            address: f.address || def.address || "",
+            city: f.city || def.city || "",
+            district: f.district || def.district || "",
+          }));
+        } else {
+          setForm((f) => ({
+            ...f,
+            name: f.name || data.profile?.full_name || "",
+            phone: f.phone || data.profile?.phone || "",
+            email: f.email || data.user.email || "",
+            address: f.address || data.profile?.default_shipping_address || "",
+            city: f.city || data.profile?.default_shipping_city || "",
+            district: f.district || data.profile?.default_shipping_district || "",
+          }));
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const t = totals(lines, method, appliedCoupon);
   const discountAmount = t.discountAmount;
@@ -184,6 +237,18 @@ export function CheckoutForm() {
           quantity: l.qty,
         })),
       });
+
+      if (customerData && saveAddressToAccount) {
+        upsertCustomerAddressAction({
+          recipientName: form.name.trim(),
+          phone: form.phone.trim(),
+          address: form.address.trim(),
+          city: form.city.trim(),
+          district: form.district,
+          label: "Delivery",
+          isDefault: customerData.addresses.length === 0,
+        }).catch(() => {});
+      }
 
       const order: PlacedOrder = {
         number: result.order_number,
@@ -400,6 +465,33 @@ export function CheckoutForm() {
           </div>
         )}
 
+        {customerData ? (
+          <div className="flex items-center justify-between rounded-2xl bg-sage-soft/60 px-4 py-3 text-xs text-charcoal">
+            <div className="flex items-center gap-2.5">
+              <span className="size-2 rounded-full bg-sage-deep" />
+              <span>
+                Signed in as <strong className="font-semibold">{customerData.user.email}</strong>
+              </span>
+            </div>
+            <Link
+              href="/account"
+              className="text-xs font-medium text-sage-deep underline underline-offset-4 hover:text-ink"
+            >
+              Account
+            </Link>
+          </div>
+        ) : (
+          <div className="flex items-center justify-between rounded-2xl border border-line bg-ivory px-4 py-3 text-xs text-charcoal">
+            <span>Already have an Almera account?</span>
+            <Link
+              href="/account/login?redirect=/checkout"
+              className="font-semibold text-sage-deep underline underline-offset-4 hover:text-ink"
+            >
+              Sign in for faster checkout →
+            </Link>
+          </div>
+        )}
+
         <Section title="Contact">
           <Field id="name" label="Full name" error={errors.name}>
             <input
@@ -444,6 +536,59 @@ export function CheckoutForm() {
         </Section>
 
         <Section title="Delivery address">
+          {customerData && customerData.addresses.length > 0 && (
+            <div className="space-y-2 pb-1">
+              <p className="eyebrow text-ink/60">Saved addresses</p>
+              <div className="grid gap-2.5 sm:grid-cols-2">
+                {customerData.addresses.map((addr) => {
+                  const isSelected = selectedAddressId === addr.id;
+                  return (
+                    <button
+                      key={addr.id}
+                      type="button"
+                      onClick={() => {
+                        setSelectedAddressId(addr.id);
+                        setForm((f) => ({
+                          ...f,
+                          name: addr.recipient_name || f.name,
+                          phone: addr.phone || f.phone,
+                          address: addr.address,
+                          city: addr.city,
+                          district: addr.district,
+                        }));
+                        if (errors.address) setErrors((x) => ({ ...x, address: undefined }));
+                        if (errors.city) setErrors((x) => ({ ...x, city: undefined }));
+                        if (errors.district) setErrors((x) => ({ ...x, district: undefined }));
+                      }}
+                      className={`relative rounded-xl border p-3.5 text-left transition ${
+                        isSelected
+                          ? "border-olive bg-sage-soft/50 ring-1 ring-olive"
+                          : "border-line bg-ivory hover:border-ink/30"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-semibold text-xs tracking-wider uppercase text-charcoal">
+                          {addr.label}
+                        </span>
+                        {addr.is_default && (
+                          <span className="rounded-full bg-olive/10 px-2 py-0.5 text-[10px] font-medium text-olive">
+                            Default
+                          </span>
+                        )}
+                      </div>
+                      <p className="mt-1 text-xs font-medium text-charcoal line-clamp-1">
+                        {addr.recipient_name} · {addr.phone}
+                      </p>
+                      <p className="text-xs text-ink/70 line-clamp-1">
+                        {addr.address}, {addr.city}
+                      </p>
+                      <p className="text-[11px] text-ink/50">{addr.district}</p>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
           <Field id="address" label="House number and street" error={errors.address}>
             <input
               id="f-address"
@@ -480,6 +625,17 @@ export function CheckoutForm() {
               </select>
             </Field>
           </div>
+          {customerData && (
+            <label className="flex items-center gap-2.5 pt-1 text-xs text-charcoal cursor-pointer">
+              <input
+                type="checkbox"
+                checked={saveAddressToAccount}
+                onChange={(e) => setSaveAddressToAccount(e.target.checked)}
+                className="size-4 rounded border-line text-olive accent-olive"
+              />
+              <span>Save this address to my Almera account for future orders</span>
+            </label>
+          )}
         </Section>
 
         <Section title="Delivery method">

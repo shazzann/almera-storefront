@@ -31,10 +31,18 @@ export function OrderConfirmation() {
     return (
       <div className="mx-auto max-w-md px-6 py-24 text-center">
         <h1 className="display text-4xl">no recent order</h1>
-        <p className="mt-3 text-ink/65">Orders you place in this browser will show up here.</p>
-        <Link href="/shop" className="btn btn-primary mt-8">
-          Shop new arrivals
-        </Link>
+        <p className="mt-3 text-ink/65">
+          Orders you place in this browser will show up here, or you can look up any order by its
+          reference number.
+        </p>
+        <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
+          <Link href="/track-order" className="btn btn-primary">
+            Track an order
+          </Link>
+          <Link href="/shop" className="btn btn-ghost">
+            Shop new arrivals
+          </Link>
+        </div>
       </div>
     );
   }
@@ -201,7 +209,10 @@ export function OrderConfirmation() {
       </div>
 
       <div className="mt-10 flex flex-col gap-3 sm:flex-row sm:justify-center">
-        <Link href="/shop" className="btn btn-primary">
+        <Link href="/track-order" className="btn btn-primary">
+          Track order status
+        </Link>
+        <Link href="/shop" className="btn btn-ghost">
           Continue shopping
         </Link>
         <a

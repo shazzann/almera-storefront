@@ -2,19 +2,40 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { SizeGuideTable } from "@/components/size-guide";
 import { DELIVERY, FREE_DELIVERY_FROM, STITCHING_FEE, formatLKR } from "@/lib/catalog";
+import { COD_DEPOSIT_THRESHOLD, COD_MIN_DEPOSIT } from "@/lib/cod-deposit";
 
 export const metadata: Metadata = {
   title: "Delivery, sizing & FAQ",
-  description: "Delivery times and fees across Sri Lanka, the almera size guide, payment options and our order policy.",
+  description:
+    "Delivery times and fees across Sri Lanka, the almera size guide, payment options and our order policy.",
   alternates: { canonical: "/help" },
 };
 
 const FAQ = [
-  { q: "What’s the difference between stitched and unstitched?", a: `Unstitched is the three-piece fabric (shirt, dupatta and trouser) for your own tailor. Stitched means our tailors make it up in a standard size for ${formatLKR(STITCHING_FEE)}, ready in 5–7 days.` },
-  { q: "Can I give my own measurements?", a: "Yes. Choose the closest size, then add your measurements in the note at checkout. We’ll confirm them with you before stitching." },
-  { q: "Are the colours accurate?", a: "We photograph in daylight and avoid filters, but screens differ. If colour matters, message us for an unedited photo or video before ordering." },
-  { q: "How do I know my order went through?", a: "You’ll see a confirmation with your order number, and we’ll call or WhatsApp you within one working day." },
-  { q: "Do you restock sold-out pieces?", a: "Lawn sometimes comes back. Bridal pieces are usually one of a kind. Follow @almera.lk to hear about restocks first." },
+  {
+    q: "What’s the difference between stitched and unstitched?",
+    a: `Unstitched is the three-piece fabric (shirt, dupatta and trouser) for your own tailor. Stitched means our tailors make it up in a standard size for ${formatLKR(STITCHING_FEE)}, ready in 5–7 days.`,
+  },
+  {
+    q: "Why do Cash on Delivery orders over Rs. 3,000 require an advance deposit?",
+    a: `For Cash on Delivery orders above ${formatLKR(COD_DEPOSIT_THRESHOLD)}, we ask for a small ${formatLKR(COD_MIN_DEPOSIT)} commitment deposit via bank transfer to confirm dispatch. This amount is deducted from your order total, and you pay the remaining balance in cash to the courier upon delivery.`,
+  },
+  {
+    q: "Can I give my own measurements?",
+    a: "Yes. Choose the closest size, then add your measurements in the note at checkout. We’ll confirm them with you before stitching.",
+  },
+  {
+    q: "Are the colours accurate?",
+    a: "We photograph in daylight and avoid filters, but screens differ. If colour matters, message us for an unedited photo or video before ordering.",
+  },
+  {
+    q: "How do I know my order went through?",
+    a: "You’ll see a confirmation with your order number, and you can check your status anytime on our Track Order page. We’ll also call or WhatsApp you within one working day.",
+  },
+  {
+    q: "Do you restock sold-out pieces?",
+    a: "Lawn sometimes comes back. Bridal pieces are usually one of a kind. Follow @almera.lk to hear about restocks first.",
+  },
 ];
 
 export default function HelpPage() {
@@ -24,9 +45,24 @@ export default function HelpPage() {
       <h1 className="display mt-4 text-[3.2rem] sm:text-7xl">
         before you <em className="text-sage-deep">order</em>
       </h1>
-      <nav className="no-scrollbar -mx-4 mt-8 flex gap-2 overflow-x-auto px-4" aria-label="On this page">
-        {[["delivery", "Delivery"], ["sizing", "Sizing"], ["payment", "Payment"], ["policy", "Order policy"], ["faq", "FAQ"]].map(([id, label]) => (
-          <a key={id} href={`#${id}`} className="shrink-0 rounded-full border border-line bg-ivory px-5 py-2.5 text-sm font-medium hover:border-ink">{label}</a>
+      <nav
+        className="no-scrollbar -mx-4 mt-8 flex gap-2 overflow-x-auto px-4"
+        aria-label="On this page"
+      >
+        {[
+          ["delivery", "Delivery"],
+          ["sizing", "Sizing"],
+          ["payment", "Payment"],
+          ["policy", "Order policy"],
+          ["faq", "FAQ"],
+        ].map(([id, label]) => (
+          <a
+            key={id}
+            href={`#${id}`}
+            className="shrink-0 rounded-full border border-line bg-ivory px-5 py-2.5 text-sm font-medium hover:border-ink"
+          >
+            {label}
+          </a>
         ))}
       </nav>
 
@@ -41,7 +77,8 @@ export default function HelpPage() {
           ))}
         </div>
         <p className="mt-4 leading-relaxed text-ink/75">
-          Delivery is free on orders over {formatLKR(FREE_DELIVERY_FROM)}. Stitched orders take 5–7 days before dispatch. We deliver to all 25 districts.
+          Delivery is free on orders over {formatLKR(FREE_DELIVERY_FROM)}. Stitched orders take
+          5–7 days before dispatch. We deliver to all 25 districts.
         </p>
       </Block>
 
@@ -53,8 +90,24 @@ export default function HelpPage() {
 
       <Block id="payment" title="Payment">
         <ul className="space-y-3 leading-relaxed text-ink/75">
-          <li><strong className="font-semibold text-ink">Cash on delivery.</strong> Pay the courier when your parcel arrives.</li>
-          <li><strong className="font-semibold text-ink">Bank transfer.</strong> We’ll send our account details on WhatsApp, and your order ships once the slip is confirmed.</li>
+          <li>
+            <strong className="font-semibold text-ink">Cash on delivery.</strong> Pay the courier
+            when your parcel arrives. For COD orders above{" "}
+            <strong className="font-semibold text-ink">
+              {formatLKR(COD_DEPOSIT_THRESHOLD)}
+            </strong>
+            , a minimum{" "}
+            <strong className="font-semibold text-ink">
+              {formatLKR(COD_MIN_DEPOSIT)} advance commitment deposit
+            </strong>{" "}
+            via bank transfer is required to confirm dispatch, and the remaining balance is
+            collected in cash on delivery.
+          </li>
+          <li>
+            <strong className="font-semibold text-ink">Bank transfer.</strong> Transfer the full
+            order total to our bank account and share your slip on WhatsApp; your order ships once
+            the slip is confirmed.
+          </li>
         </ul>
       </Block>
 
@@ -62,7 +115,8 @@ export default function HelpPage() {
         <div className="rounded-2xl bg-sage-soft p-6 leading-relaxed">
           <p className="font-semibold">All sales are final.</p>
           <p className="mt-2 text-ink/80">
-            We don’t offer exchanges, returns or refunds. Please check the size guide and product details carefully, and message us with any questions before you order.
+            We don’t offer exchanges, returns or refunds. Please check the size guide and product
+            details carefully, and message us with any questions before you order.
           </p>
         </div>
       </Block>
@@ -73,21 +127,42 @@ export default function HelpPage() {
             <details key={f.q} className="group">
               <summary className="flex min-h-16 cursor-pointer list-none items-center justify-between gap-4 py-3 font-medium [&::-webkit-details-marker]:hidden">
                 {f.q}
-                <span className="text-xl leading-none text-gold transition-transform group-open:rotate-45" aria-hidden>+</span>
+                <span
+                  className="text-xl leading-none text-gold transition-transform group-open:rotate-45"
+                  aria-hidden
+                >
+                  +
+                </span>
               </summary>
               <p className="pb-5 leading-relaxed text-ink/70">{f.a}</p>
             </details>
           ))}
         </div>
         <p className="mt-8 text-ink/70">
-          Still unsure? <Link href="/contact" className="underline underline-offset-4">Get in touch</Link>.
+          Still unsure?{" "}
+          <Link href="/contact" className="underline underline-offset-4">
+            Get in touch
+          </Link>{" "}
+          or{" "}
+          <Link href="/track-order" className="underline underline-offset-4">
+            track an existing order
+          </Link>
+          .
         </p>
       </Block>
     </div>
   );
 }
 
-function Block({ id, title, children }: { id: string; title: string; children: React.ReactNode }) {
+function Block({
+  id,
+  title,
+  children,
+}: {
+  id: string;
+  title: string;
+  children: React.ReactNode;
+}) {
   return (
     <section id={id} className="mt-14">
       <h2 className="display mb-5 text-4xl">{title}</h2>

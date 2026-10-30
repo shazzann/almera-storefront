@@ -1,0 +1,95 @@
+import { createServerClient } from "@supabase/ssr";
+import { NextResponse, type NextRequest } from "next/server";
+import { isAdminEmail } from "@/lib/admin-config";
+
+export async function proxy(request: NextRequest) {
+  let supabaseResponse = NextResponse.next({
+    request,
+  });
+
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+  if (!url || !key) return supabaseResponse;
+
+  const supabase = createServerClient(url, key, {
+    cookies: {
+      getAll() {
+        return request.cookies.getAll();
+      },
+      setAll(cookiesToSet) {
+        cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
+        supabaseResponse = NextResponse.next({
+          request,
+        });
+        cookiesToSet.forEach(({ name, value, options }) =>
+          supabaseResponse.cookies.set(name, value, options),
+        );
+      },
+    },
+  });
+
+  const path = request.nextUrl.pathname;
+
+  if (path.startsWith("/admin")) {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      const loginUrl = new URL("/account/login", request.url);
+      loginUrl.searchParams.set("next", path);
+      return NextResponse.redirect(loginUrl);
+    }
+
+    if (!isAdminEmail(user.email)) {
+      return NextResponse.redirect(new URL("/", request.url));
+    }
+  }
+
+  // Protect customer account routes: /account, /account/orders, /account/profile, etc.
+  // Exclude auth pages: /account/login, /account/signup, /account/forgot-password, /account/reset-password
+  const isAuthPage =
+    path === "/account/login" ||
+    path === "/account/signup" ||
+    path === "/account/forgot-password" ||
+    path === "/account/reset-password";
+
+  if (path.startsWith("/account")) {
+    if (!isAuthPage) {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        const loginUrl = new URL("/account/login", request.url);
+        loginUrl.searchParams.set("next", path);
+        return NextResponse.redirect(loginUrl);
+      }
+    } else if (path === "/account/login" || path === "/account/signup") {
+      // If user is already authenticated and visits login/signup, redirect to account dashboard
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (user) {
+        return NextResponse.redirect(new URL("/account", request.url));
+      }
+    }
+  }
+
+  return supabaseResponse;
+}
+
+export const config = {
+  matcher: [
+    /*
+     * Match all request paths except for:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * - images / static media files
+     */
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|avif)$).*)",
+  ],
+};
+

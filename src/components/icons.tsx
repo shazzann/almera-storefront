@@ -56,3 +56,8 @@ export const InstagramIcon = (p: P) => (
 export const WhatsAppIcon = (p: P) => (
   <svg {...base} {...p}><path d="M4 20l1.2-3.8A8 8 0 1 1 8 19z" /><path d="M9 8.5c0 3.5 3 6.5 6.5 6.5l1-1.5-2-1-1 .8a5 5 0 0 1-2.8-2.8l.8-1-1-2Z" /></svg>
 );
+
+
+export const UserIcon = (p: P) => (
+  <svg {...base} {...p}><circle cx="12" cy="8" r="4" /><path d="M5.5 20a6.5 6.5 0 0 1 13 0" /></svg>
+);

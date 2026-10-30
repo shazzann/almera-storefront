@@ -23,6 +23,7 @@ import {
   type PublicCouponSummary,
 } from "@/lib/coupons.server";
 import { getSupabaseAdmin } from "@/lib/supabase/admin.server";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 const SL_PHONE_REGEX = /^(?:\+94|0)?7\d{8}$/;
 
@@ -92,6 +93,17 @@ export async function validateCouponAction(input: {
     throw new Error("Enter a promo code.");
   }
 
+  let authenticatedUserId: string | null = null;
+  try {
+    const userClient = await createSupabaseServerClient();
+    const {
+      data: { user },
+    } = await userClient.auth.getUser();
+    if (user?.id) authenticatedUserId = user.id;
+  } catch {
+    // guest
+  }
+
   const verified = await resolveAuthoritativeLines(input.items);
   const subtotal = verified.reduce((s, l) => s + l.unit_price * l.quantity, 0);
   const deliveryFee = subtotal >= FREE_DELIVERY_FROM ? 0 : DELIVERY.standard.fee;
@@ -111,6 +123,7 @@ export async function validateCouponAction(input: {
     customer: {
       phone: input.phone,
       email: input.email,
+      user_id: authenticatedUserId,
     },
     requireCustomerForFirstOrder: input.requireCustomerForFirstOrder ?? false,
   });
@@ -267,6 +280,19 @@ export async function placeOrderAction(rawInput: PlaceOrderInput) {
   const normalizedPhone = await normalizeSlPhone(data.phone);
   const cleanEmail = data.email ? data.email.trim().toLowerCase() : null;
 
+  let authenticatedUserId: string | null = null;
+  try {
+    const userClient = await createSupabaseServerClient();
+    const {
+      data: { user },
+    } = await userClient.auth.getUser();
+    if (user?.id) {
+      authenticatedUserId = user.id;
+    }
+  } catch {
+    // guest checkout
+  }
+
   if (data.idempotency_key) {
     const { data: existing } = await supabase
       .from("orders")
@@ -309,6 +335,7 @@ export async function placeOrderAction(rawInput: PlaceOrderInput) {
       customer: {
         phone: normalizedPhone,
         email: cleanEmail,
+        user_id: authenticatedUserId,
       },
       requireCustomerForFirstOrder: true,
     });
@@ -332,6 +359,7 @@ export async function placeOrderAction(rawInput: PlaceOrderInput) {
     const { data: orderRow, error: orderErr } = await supabase
       .from("orders")
       .insert({
+        user_id: authenticatedUserId,
         customer_name: data.name,
         phone: normalizedPhone,
         email: cleanEmail,
@@ -429,5 +457,100 @@ export async function placeOrderAction(rawInput: PlaceOrderInput) {
     total: Number(createdOrder.total),
     status: createdOrder.status as string,
     payment_method: createdOrder.payment_method as "cod" | "bank",
+  };
+}
+
+export type TrackedOrderResult = {
+  order_number: string;
+  customer_name: string;
+  phone: string;
+  city: string;
+  district: string;
+  subtotal: number;
+  delivery_fee: number;
+  discount_amount: number;
+  coupon_code: string | null;
+  total: number;
+  advance_deposit: number;
+  advance_deposit_at: string | null;
+  refund_amount: number;
+  payment_method: "cod" | "bank" | "card";
+  status: string;
+  created_at: string;
+  items: Array<{
+    id: string;
+    product_slug: string;
+    product_name: string;
+    stitching: "unstitched" | "stitched";
+    size: string | null;
+    unit_price: number;
+    quantity: number;
+    image_url: string | null;
+  }>;
+};
+
+export async function lookupOrderAction(input: {
+  orderNumber: string;
+  phone: string;
+}): Promise<TrackedOrderResult | null> {
+  const hdrs = await headers();
+  const ip = getClientIp({ headers: hdrs });
+  enforceRateLimit(ip, {
+    namespace: "lookup-order",
+    maxRequests: 15,
+    windowMs: 5 * 60 * 1000,
+  });
+
+  const rawNum = (input.orderNumber || "").trim().toUpperCase().replace(/[^A-Z0-9-]/g, "");
+  if (!rawNum) {
+    throw new Error("Please enter your order number (e.g. ALM-10001).");
+  }
+  const normalizedOrderNum = rawNum.startsWith("ALM-") ? rawNum : `ALM-${rawNum.replace(/^ALM/, "")}`;
+
+  const rawPhone = (input.phone || "").trim().replace(/[\s-]/g, "");
+  if (!SL_PHONE_REGEX.test(rawPhone)) {
+    throw new Error("Please enter the Sri Lankan mobile number used at checkout (07XXXXXXXX).");
+  }
+  const normalizedPhone = await normalizeSlPhone(rawPhone);
+
+  const supabase = getSupabaseAdmin();
+  const { data: order, error } = await supabase
+    .from("orders")
+    .select("*, order_items (*)")
+    .eq("order_number", normalizedOrderNum)
+    .eq("phone", normalizedPhone)
+    .maybeSingle();
+
+  if (error || !order) {
+    return null;
+  }
+
+  return {
+    order_number: order.order_number,
+    customer_name: order.customer_name,
+    phone: order.phone,
+    city: order.city,
+    district: order.district,
+    subtotal: Number(order.subtotal ?? 0),
+    delivery_fee: Number(order.delivery_fee ?? 0),
+    discount_amount: Number(order.discount_amount ?? 0),
+    coupon_code: order.coupon_code ?? null,
+    total: Number(order.total ?? 0),
+    advance_deposit: Number(order.advance_deposit ?? 0),
+    advance_deposit_at: order.advance_deposit_at ?? null,
+    refund_amount: Number(order.refund_amount ?? 0),
+    payment_method: order.payment_method,
+    status: order.status,
+    created_at: order.created_at,
+    items: (order.order_items ?? []).map((item: any) => ({
+      id: item.id,
+      product_slug: item.product_slug,
+      product_name: item.product_name,
+      stitching: item.stitching,
+      size: item.size ?? null,
+      unit_price: Number(item.unit_price ?? 0),
+      quantity: Number(item.quantity ?? 1),
+      image_url: item.image_url ?? null,
+    })),
   };
 }

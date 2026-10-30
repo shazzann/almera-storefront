@@ -18,6 +18,18 @@ export const COUPON_RATE_LIMIT: RateLimitConfig = {
   windowMs: 5 * 60 * 1000, // 15 checks per 5 minutes per IP
 };
 
+export const AUTH_LOGIN_RATE_LIMIT: RateLimitConfig = {
+  namespace: "auth-login",
+  maxRequests: 10,
+  windowMs: 15 * 60 * 1000, // 10 login attempts per 15 minutes per IP
+};
+
+export const AUTH_SIGNUP_RATE_LIMIT: RateLimitConfig = {
+  namespace: "auth-signup",
+  maxRequests: 5,
+  windowMs: 30 * 60 * 1000, // 5 signups per 30 minutes per IP
+};
+
 const MAX_BUCKETS = 5000;
 const buckets = new Map<string, number[]>();
 
@@ -57,4 +69,3 @@ export function enforceRateLimit(ip: string, config: RateLimitConfig): void {
   recent.push(now);
   buckets.set(key, recent);
 }
-

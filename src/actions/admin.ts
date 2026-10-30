@@ -21,9 +21,6 @@ export async function getAdminStatusAction(accessToken?: string | null) {
       error: "Supabase credentials are not configured in .env.local.",
     };
   }
-  if (!accessToken) {
-    return { supabaseConfigured: true, authenticated: false, email: null };
-  }
   try {
     const admin = await assertAdmin(accessToken);
     return { supabaseConfigured: true, authenticated: true, email: admin.email };
@@ -607,4 +604,63 @@ export async function deleteCouponAction(
   });
 
   return { ok: true };
+}
+
+
+const categoryInputSchema = z.object({
+  id: z.string().uuid().optional(),
+  slug: z
+    .string()
+    .trim()
+    .min(2)
+    .max(50)
+    .regex(/^[a-z0-9-]+$/, "Category slug must be lowercase letters, numbers, and hyphens."),
+  name: z.string().trim().min(2).max(80),
+  nav_group: z.enum(["Everyday", "Special", "More"]).default("Everyday"),
+  subcategories: z.array(z.string()).default([]),
+  description: z.string().trim().default(""),
+  image_url: z.string().trim().default(""),
+  sort_order: z.number().int().min(0).default(0),
+  is_active: z.boolean().default(true),
+});
+
+export async function upsertCategoryAction(
+  accessToken: string | null | undefined,
+  rawPayload: z.input<typeof categoryInputSchema>,
+) {
+  const admin = await assertAdmin(accessToken);
+  const payload = categoryInputSchema.parse(rawPayload);
+  const supabase = getSupabaseAdmin(accessToken);
+
+  const row = {
+    slug: payload.slug,
+    name: payload.name,
+    nav_group: payload.nav_group,
+    subcategories: payload.subcategories.map((s) => s.trim()).filter(Boolean),
+    description: payload.description,
+    image_url: payload.image_url,
+    sort_order: payload.sort_order,
+    is_active: payload.is_active,
+    ...(payload.id ? { id: payload.id } : {}),
+  };
+
+  const { data, error } = await supabase
+    .from("categories")
+    .upsert(row, { onConflict: "slug" })
+    .select("*")
+    .single();
+
+  if (error) throw new Error(error.message);
+
+  await logAuditEvent({
+    userId: admin.userId,
+    action: "upsert_category",
+    entityType: "category",
+    entityId: data.id,
+    details: { slug: data.slug, name: data.name, subcategories: data.subcategories },
+    accessToken,
+  });
+
+  revalidateCatalogCache([], [data.slug]);
+  return data;
 }

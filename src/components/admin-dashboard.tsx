@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   deleteCouponAction,
   getAdminDashboardDataAction,
@@ -8,6 +8,7 @@ import {
   recordBankDepositAction,
   refundOrderAction,
   updateOrderStatusAction,
+  upsertCategoryAction,
   upsertCouponAction,
   upsertProductAction,
 } from "@/actions/admin";
@@ -26,7 +27,10 @@ import {
 import { optimizeImageToWebP } from "@/lib/image-optimizer";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 
-type Tab = "orders" | "products" | "coupons" | "audit";
+type Tab = "orders" | "products" | "categories" | "coupons" | "audit";
+
+const ORDERS_PER_PAGE = 10;
+const PRODUCTS_PER_PAGE = 9;
 
 const ORDER_STATUSES = [
   "pending",
@@ -74,10 +78,17 @@ export function AdminDashboard() {
   const [banner, setBanner] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
 
-  // Filters & Modals
+  // Filters, Pagination & Modals
   const [orderStatusFilter, setOrderStatusFilter] = useState<string>("all");
+  const [orderQuery, setOrderQuery] = useState("");
+  const [orderPage, setOrderPage] = useState(1);
+
   const [productQuery, setProductQuery] = useState("");
+  const [lowStockOnly, setLowStockOnly] = useState(false);
+  const [productPage, setProductPage] = useState(1);
+
   const [editingProduct, setEditingProduct] = useState<any | null>(null);
+  const [editingCategory, setEditingCategory] = useState<any | null>(null);
   const [editingCoupon, setEditingCoupon] = useState<any | null>(null);
   const [depositOrder, setDepositOrder] = useState<any | null>(null);
 
@@ -139,6 +150,50 @@ export function AdminDashboard() {
     if (sb) await sb.auth.signOut();
     setToken(null);
     await refreshAll(null);
+  }
+
+  function exportOrdersCsv(orderRows: any[]) {
+    const headers = [
+      "Order Number",
+      "Date",
+      "Customer Name",
+      "Phone",
+      "City",
+      "District",
+      "Address",
+      "Payment Method",
+      "Status",
+      "Order Total (LKR)",
+      "Advance Deposit (LKR)",
+      "Courier Balance Due (LKR)",
+    ];
+    const rows = orderRows.map((o) => {
+      const balance = getCodBalanceDue(o);
+      return [
+        o.order_number,
+        new Date(o.created_at).toISOString().slice(0, 10),
+        o.customer_name,
+        o.phone,
+        o.city,
+        o.district,
+        o.address,
+        o.payment_method,
+        o.status,
+        Number(o.total ?? 0),
+        Number(o.advance_deposit ?? 0),
+        balance,
+      ]
+        .map((cell) => `"${String(cell ?? "").replace(/"/g, '""')}"`)
+        .join(",");
+    });
+    const csv = [headers.join(","), ...rows].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `almera-orders-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
   }
 
   function printPackingSlip(order: any) {
@@ -218,6 +273,96 @@ export function AdminDashboard() {
     win.document.close();
   }
 
+  const visibleOrders = useMemo(() => {
+    return orders.filter((o) => {
+      if (orderStatusFilter === "needs_cod_deposit") {
+        const needsDep = requiresCodDeposit(o.payment_method, Number(o.total ?? 0));
+        if (!needsDep || Number(o.advance_deposit ?? 0) >= COD_MIN_DEPOSIT || o.status === "cancelled") {
+          return false;
+        }
+      } else if (orderStatusFilter !== "all" && o.status !== orderStatusFilter) {
+        return false;
+      }
+
+      if (orderQuery.trim()) {
+        const q = orderQuery.trim().toLowerCase();
+        const hay = [
+          o.order_number,
+          o.customer_name,
+          o.phone,
+          o.email,
+          o.city,
+          o.district,
+          o.coupon_code,
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    });
+  }, [orders, orderStatusFilter, orderQuery]);
+
+  const totalOrderPages = Math.max(1, Math.ceil(visibleOrders.length / ORDERS_PER_PAGE));
+  const paginatedOrders = useMemo(
+    () => visibleOrders.slice((orderPage - 1) * ORDERS_PER_PAGE, orderPage * ORDERS_PER_PAGE),
+    [visibleOrders, orderPage],
+  );
+
+  useEffect(() => {
+    setOrderPage(1);
+  }, [orderStatusFilter, orderQuery]);
+
+  const visibleProducts = useMemo(() => {
+    return products.filter((p) => {
+      if (lowStockOnly) {
+        const variants: any[] = Array.isArray(p.product_variants) ? p.product_variants : [];
+        const hasLowVariant =
+          Number(p.stock ?? 0) <= 3 || variants.some((v) => Number(v.stock ?? 0) <= 1);
+        if (!hasLowVariant) return false;
+      }
+      if (!productQuery.trim()) return true;
+      const q = productQuery.trim().toLowerCase();
+      return [p.name, p.slug, p.colour, p.fabric, p.subcategory, ...(p.categories ?? [])]
+        .join(" ")
+        .toLowerCase()
+        .includes(q);
+    });
+  }, [products, productQuery, lowStockOnly]);
+
+  const totalProductPages = Math.max(1, Math.ceil(visibleProducts.length / PRODUCTS_PER_PAGE));
+  const paginatedProducts = useMemo(
+    () =>
+      visibleProducts.slice(
+        (productPage - 1) * PRODUCTS_PER_PAGE,
+        productPage * PRODUCTS_PER_PAGE,
+      ),
+    [visibleProducts, productPage],
+  );
+
+  useEffect(() => {
+    setProductPage(1);
+  }, [productQuery, lowStockOnly]);
+
+  // KPI Metrics
+  const kpis = useMemo(() => {
+    const activeOrders = orders.filter((o) => o.status !== "cancelled" && o.status !== "refunded");
+    const revenue = activeOrders.reduce(
+      (sum, o) => sum + Math.max(0, Number(o.total ?? 0) - Number(o.refund_amount ?? 0)),
+      0,
+    );
+    const depositsCollected = activeOrders.reduce(
+      (sum, o) => sum + Number(o.advance_deposit ?? 0),
+      0,
+    );
+    const courierBalancePending = activeOrders
+      .filter((o) => o.status !== "delivered")
+      .reduce((sum, o) => sum + getCodBalanceDue(o), 0);
+    const lowStockCount = products.filter((p) => Number(p.stock ?? 0) <= 3).length;
+    return { revenue, depositsCollected, courierBalancePending, lowStockCount };
+  }, [orders, products]);
+
   if (authState.loading) {
     return (
       <div className="mx-auto max-w-4xl px-4 py-20 text-center text-sm text-ink/60">
@@ -233,8 +378,7 @@ export function AdminDashboard() {
           <p className="eyebrow text-gold-deep">almera admin</p>
           <h1 className="display mt-2 text-4xl">sign in</h1>
           <p className="mt-2 text-sm text-ink/65">
-            Sign in with an account that has <code className="text-xs">role = &apos;admin&apos;</code> in{" "}
-            <code className="text-xs">public.user_roles</code>.
+            Sign in with the Almera administrator account.
           </p>
           {(banner || authState.error) && (
             <p className="mt-4 rounded-xl bg-[#a5432f]/10 p-3 text-xs text-[#a5432f]">
@@ -271,20 +415,6 @@ export function AdminDashboard() {
     );
   }
 
-  const visibleOrders =
-    orderStatusFilter === "all"
-      ? orders
-      : orders.filter((o) => o.status === orderStatusFilter);
-
-  const visibleProducts = products.filter((p) => {
-    if (!productQuery.trim()) return true;
-    const q = productQuery.trim().toLowerCase();
-    return [p.name, p.slug, p.colour, p.fabric, p.subcategory, ...(p.categories ?? [])]
-      .join(" ")
-      .toLowerCase()
-      .includes(q);
-  });
-
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-8 sm:py-12">
       <div className="flex flex-wrap items-center justify-between gap-4 border-b border-line pb-6">
@@ -299,6 +429,40 @@ export function AdminDashboard() {
               Sign out
             </button>
           )}
+        </div>
+      </div>
+
+      {/* KPI Summary Cards */}
+      <div className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <div className="rounded-2xl border border-line bg-ivory p-4">
+          <p className="text-[11px] font-semibold tracking-wider text-ink/55 uppercase">
+            Active Order Revenue
+          </p>
+          <p className="mt-1 text-xl font-semibold tabular-nums">{formatLKR(kpis.revenue)}</p>
+        </div>
+        <div className="rounded-2xl border border-line bg-ivory p-4">
+          <p className="text-[11px] font-semibold tracking-wider text-ink/55 uppercase">
+            Deposits Collected
+          </p>
+          <p className="mt-1 text-xl font-semibold text-sage-deep tabular-nums">
+            {formatLKR(kpis.depositsCollected)}
+          </p>
+        </div>
+        <div className="rounded-2xl border border-line bg-ivory p-4">
+          <p className="text-[11px] font-semibold tracking-wider text-ink/55 uppercase">
+            Courier Balance Pending
+          </p>
+          <p className="mt-1 text-xl font-semibold text-gold-deep tabular-nums">
+            {formatLKR(kpis.courierBalancePending)}
+          </p>
+        </div>
+        <div className="rounded-2xl border border-line bg-ivory p-4">
+          <p className="text-[11px] font-semibold tracking-wider text-ink/55 uppercase">
+            Low / Sold Out Pieces
+          </p>
+          <p className="mt-1 text-xl font-semibold tabular-nums">
+            {kpis.lowStockCount} / {products.length}
+          </p>
         </div>
       </div>
 
@@ -320,6 +484,7 @@ export function AdminDashboard() {
           [
             ["orders", `Orders (${orders.length})`],
             ["products", `Products (${products.length})`],
+            ["categories", `Categories (${dbCategories.length})`],
             ["coupons", `Coupons (${coupons.length})`],
             ["audit", `Audit Log (${auditLogs.length})`],
           ] as const
@@ -327,7 +492,7 @@ export function AdminDashboard() {
           <button
             key={key}
             onClick={() => setTab(key)}
-            className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+            className={`shrink-0 rounded-full px-4 py-2 text-sm font-medium transition ${
               tab === key ? "bg-ink text-ivory" : "bg-ivory text-ink/70 hover:text-ink"
             }`}
           >
@@ -339,8 +504,31 @@ export function AdminDashboard() {
       {/* ORDERS TAB */}
       {tab === "orders" && (
         <div className="mt-6 space-y-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <input
+              type="search"
+              value={orderQuery}
+              onChange={(e) => setOrderQuery(e.target.value)}
+              placeholder="Search order #, customer name, phone, district…"
+              className="field max-w-sm py-2 text-sm"
+            />
+            <button
+              type="button"
+              onClick={() => exportOrdersCsv(visibleOrders)}
+              className="btn btn-ghost px-4 py-2 text-xs"
+            >
+              Export CSV ({visibleOrders.length})
+            </button>
+          </div>
+
           <div className="flex flex-wrap items-center gap-2">
-            {["all", ...ORDER_STATUSES, "partially_refunded", "refunded"].map((st) => (
+            {[
+              ["all", "All"],
+              ["needs_cod_deposit", "Needs COD Deposit"],
+              ...ORDER_STATUSES.map((s) => [s, s.replace(/_/g, " ")]),
+              ["partially_refunded", "Partially refunded"],
+              ["refunded", "Refunded"],
+            ].map(([st, label]) => (
               <button
                 key={st}
                 onClick={() => setOrderStatusFilter(st)}
@@ -350,7 +538,7 @@ export function AdminDashboard() {
                     : "border-line bg-ivory text-ink/70"
                 }`}
               >
-                {st.replace(/_/g, " ")}
+                {label}
               </button>
             ))}
           </div>
@@ -388,182 +576,200 @@ export function AdminDashboard() {
               No orders matching this filter yet.
             </div>
           ) : (
-            <div className="space-y-4">
-              {visibleOrders.map((o) => {
-                const orderTotal = Number(o.total ?? 0);
-                const depositPaid = Number(o.advance_deposit ?? 0);
-                const balanceDue = getCodBalanceDue(o);
-                const needsCodDep = requiresCodDeposit(o.payment_method, orderTotal);
-                return (
-                  <div key={o.id} className="rounded-2xl border border-line bg-ivory p-5">
-                    <div className="flex flex-wrap items-start justify-between gap-4">
-                      <div>
-                        <div className="flex flex-wrap items-center gap-2.5">
-                          <span className="font-mono text-base font-semibold">
-                            {o.order_number}
-                          </span>
-                          <span className="rounded-full bg-sage-soft px-3 py-0.5 text-xs font-medium capitalize">
-                            {o.status.replace(/_/g, " ")}
-                          </span>
-                          <span className="text-xs uppercase text-ink/55">{o.payment_method}</span>
-                          {needsCodDep && depositPaid < COD_MIN_DEPOSIT && (
-                            <span className="rounded-full bg-gold/25 px-2.5 py-0.5 text-xs font-semibold text-gold-deep">
-                              COD Deposit Pending (Min {formatLKR(COD_MIN_DEPOSIT)})
+            <>
+              <div className="space-y-4">
+                {paginatedOrders.map((o) => {
+                  const orderTotal = Number(o.total ?? 0);
+                  const depositPaid = Number(o.advance_deposit ?? 0);
+                  const balanceDue = getCodBalanceDue(o);
+                  const needsCodDep = requiresCodDeposit(o.payment_method, orderTotal);
+                  return (
+                    <div key={o.id} className="rounded-2xl border border-line bg-ivory p-5">
+                      <div className="flex flex-wrap items-start justify-between gap-4">
+                        <div>
+                          <div className="flex flex-wrap items-center gap-2.5">
+                            <span className="font-mono text-base font-semibold">
+                              {o.order_number}
                             </span>
-                          )}
-                          {depositPaid > 0 && (
-                            <span className="rounded-full bg-sage-soft px-2.5 py-0.5 text-xs font-semibold text-sage-deep">
-                              Deposit Paid: {formatLKR(depositPaid)}
+                            <span className="rounded-full bg-sage-soft px-3 py-0.5 text-xs font-medium capitalize">
+                              {o.status.replace(/_/g, " ")}
                             </span>
+                            <span className="text-xs text-ink/55 uppercase">
+                              {o.payment_method}
+                            </span>
+                            {needsCodDep && depositPaid < COD_MIN_DEPOSIT && (
+                              <span className="rounded-full bg-gold/25 px-2.5 py-0.5 text-xs font-semibold text-gold-deep">
+                                COD Deposit Pending (Min {formatLKR(COD_MIN_DEPOSIT)})
+                              </span>
+                            )}
+                            {depositPaid > 0 && (
+                              <span className="rounded-full bg-sage-soft px-2.5 py-0.5 text-xs font-semibold text-sage-deep">
+                                Deposit Paid: {formatLKR(depositPaid)}
+                              </span>
+                            )}
+                          </div>
+                          <p className="mt-1 text-sm font-medium">
+                            {o.customer_name} · {o.phone} {o.email ? `· ${o.email}` : ""}
+                          </p>
+                          <p className="text-xs text-ink/65">
+                            {o.address}, {o.city}, {o.district}
+                          </p>
+                          {o.notes && (
+                            <p className="mt-1.5 rounded-lg bg-mist px-3 py-1.5 text-xs text-ink/80">
+                              <strong>Note:</strong> {o.notes}
+                            </p>
                           )}
                         </div>
-                        <p className="mt-1 text-sm font-medium">
-                          {o.customer_name} · {o.phone} {o.email ? `· ${o.email}` : ""}
-                        </p>
-                        <p className="text-xs text-ink/65">
-                          {o.address}, {o.city}, {o.district}
-                        </p>
-                        {o.notes && (
-                          <p className="mt-1.5 rounded-lg bg-mist px-3 py-1.5 text-xs text-ink/80">
-                            <strong>Note:</strong> {o.notes}
+
+                        <div className="text-right">
+                          <p className="text-lg font-semibold tabular-nums">
+                            {formatLKR(orderTotal)}
                           </p>
-                        )}
+                          {depositPaid > 0 && (
+                            <p className="text-xs text-sage-deep">
+                              Advance Deposit: −{formatLKR(depositPaid)}
+                              {o.bank_slip_reference ? ` (Ref: ${o.bank_slip_reference})` : ""}
+                            </p>
+                          )}
+                          {o.advance_deposit_note && (
+                            <p className="text-[11px] text-ink/60">
+                              Deposit Note: {o.advance_deposit_note}
+                            </p>
+                          )}
+                          {Number(o.refund_amount ?? 0) > 0 && (
+                            <p className="text-xs text-[#a5432f]">
+                              Refunded: −{formatLKR(Number(o.refund_amount))}
+                            </p>
+                          )}
+                          <p className="mt-1 text-xs font-semibold text-ink">
+                            Courier Balance Due: {formatLKR(balanceDue)}
+                          </p>
+                          <button
+                            onClick={() => printPackingSlip(o)}
+                            className="mt-2 text-xs underline underline-offset-4"
+                          >
+                            Print packing slip / courier sticker
+                          </button>
+                        </div>
                       </div>
 
-                      <div className="text-right">
-                        <p className="text-lg font-semibold tabular-nums">
-                          {formatLKR(orderTotal)}
-                        </p>
-                        {depositPaid > 0 && (
-                          <p className="text-xs text-sage-deep">
-                            Advance Deposit: −{formatLKR(depositPaid)}
-                            {o.bank_slip_reference ? ` (Ref: ${o.bank_slip_reference})` : ""}
-                          </p>
-                        )}
-                        {o.advance_deposit_note && (
-                          <p className="text-[11px] text-ink/60">
-                            Deposit Note: {o.advance_deposit_note}
-                          </p>
-                        )}
-                        {Number(o.refund_amount ?? 0) > 0 && (
-                          <p className="text-xs text-[#a5432f]">
-                            Refunded: −{formatLKR(Number(o.refund_amount))}
-                          </p>
-                        )}
-                        <p className="mt-1 text-xs font-semibold text-ink">
-                          Courier Balance Due: {formatLKR(balanceDue)}
-                        </p>
+                      <ul className="mt-3 divide-y divide-line border-t border-line pt-2 text-xs">
+                        {(o.order_items ?? []).map((it: any) => (
+                          <li key={it.id} className="flex justify-between py-1.5">
+                            <span>
+                              {it.quantity} × {it.product_name}{" "}
+                              <span className="text-ink/55 capitalize">
+                                ({it.stitching}
+                                {it.size && it.size !== "-" ? `, ${it.size}` : ""})
+                              </span>
+                            </span>
+                            <span className="font-medium tabular-nums">
+                              {formatLKR(Number(it.unit_price) * Number(it.quantity))}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+
+                      <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-line pt-3">
+                        <label className="flex items-center gap-1.5 text-xs">
+                          <span className="text-ink/60">Status:</span>
+                          <select
+                            value={o.status}
+                            disabled={busy}
+                            onChange={async (e) => {
+                              const nextStatus = e.target.value as any;
+                              setBusy(true);
+                              setBanner(null);
+                              try {
+                                await updateOrderStatusAction(token, {
+                                  orderId: o.id,
+                                  nextStatus,
+                                });
+                                await refreshAll(token);
+                                setBanner({
+                                  kind: "ok",
+                                  text: `Updated ${o.order_number} to ${nextStatus}.`,
+                                });
+                              } catch (err) {
+                                setBanner({
+                                  kind: "err",
+                                  text: err instanceof Error ? err.message : "Update failed.",
+                                });
+                              } finally {
+                                setBusy(false);
+                              }
+                            }}
+                            className="rounded-lg border border-line bg-mist px-2.5 py-1.5 text-xs font-medium"
+                          >
+                            {ORDER_STATUSES.map((st) => (
+                              <option key={st} value={st}>
+                                {st.replace(/_/g, " ")}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+
                         <button
-                          onClick={() => printPackingSlip(o)}
-                          className="mt-2 text-xs underline underline-offset-4"
+                          type="button"
+                          onClick={() => setDepositOrder(o)}
+                          className="rounded-lg border border-line bg-mist px-3 py-1.5 text-xs font-medium hover:border-ink"
                         >
-                          Print packing slip / courier sticker
+                          {o.payment_method === "cod"
+                            ? "Record COD Deposit"
+                            : "Record Bank Slip"}
                         </button>
-                      </div>
-                    </div>
 
-                    <ul className="mt-3 divide-y divide-line border-t border-line pt-2 text-xs">
-                      {(o.order_items ?? []).map((it: any) => (
-                        <li key={it.id} className="flex justify-between py-1.5">
-                          <span>
-                            {it.quantity} × {it.product_name}
-                          </span>
-                          <span className="font-medium tabular-nums">
-                            {formatLKR(Number(it.unit_price) * Number(it.quantity))}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-
-                    <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-line pt-3">
-                      <label className="flex items-center gap-1.5 text-xs">
-                        <span className="text-ink/60">Status:</span>
-                        <select
-                          value={o.status}
-                          disabled={busy}
-                          onChange={async (e) => {
-                            const nextStatus = e.target.value as any;
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            const amtStr = window.prompt(
+                              `Refund amount (LKR) for ${o.order_number}:`,
+                              String(Number(o.total) - Number(o.refund_amount ?? 0)),
+                            );
+                            if (!amtStr) return;
+                            const reason =
+                              window.prompt("Reason for refund:", "Customer request") ?? "";
                             setBusy(true);
-                            setBanner(null);
                             try {
-                              await updateOrderStatusAction(token, {
+                              await refundOrderAction(token, {
                                 orderId: o.id,
-                                nextStatus,
+                                refundAmount: Number(amtStr),
+                                reason,
                               });
                               await refreshAll(token);
                               setBanner({
                                 kind: "ok",
-                                text: `Updated ${o.order_number} to ${nextStatus}.`,
+                                text: `Processed refund for ${o.order_number}.`,
                               });
                             } catch (err) {
                               setBanner({
                                 kind: "err",
-                                text: err instanceof Error ? err.message : "Update failed.",
+                                text: err instanceof Error ? err.message : "Refund failed.",
                               });
                             } finally {
                               setBusy(false);
                             }
                           }}
-                          className="rounded-lg border border-line bg-mist px-2.5 py-1.5 text-xs font-medium"
+                          className="rounded-lg border border-line bg-mist px-3 py-1.5 text-xs text-[#a5432f] hover:border-[#a5432f]"
                         >
-                          {ORDER_STATUSES.map((st) => (
-                            <option key={st} value={st}>
-                              {st.replace(/_/g, " ")}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-
-                      <button
-                        type="button"
-                        onClick={() => setDepositOrder(o)}
-                        className="rounded-lg border border-line bg-mist px-3 py-1.5 text-xs font-medium hover:border-ink"
-                      >
-                        {o.payment_method === "cod"
-                          ? "Record COD Deposit"
-                          : "Record Bank Slip"}
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          const amtStr = window.prompt(
-                            `Refund amount (LKR) for ${o.order_number}:`,
-                            String(Number(o.total) - Number(o.refund_amount ?? 0)),
-                          );
-                          if (!amtStr) return;
-                          const reason =
-                            window.prompt("Reason for refund:", "Customer request") ?? "";
-                          setBusy(true);
-                          try {
-                            await refundOrderAction(token, {
-                              orderId: o.id,
-                              refundAmount: Number(amtStr),
-                              reason,
-                            });
-                            await refreshAll(token);
-                            setBanner({
-                              kind: "ok",
-                              text: `Processed refund for ${o.order_number}.`,
-                            });
-                          } catch (err) {
-                            setBanner({
-                              kind: "err",
-                              text: err instanceof Error ? err.message : "Refund failed.",
-                            });
-                          } finally {
-                            setBusy(false);
-                          }
-                        }}
-                        className="rounded-lg border border-line bg-mist px-3 py-1.5 text-xs text-[#a5432f] hover:border-[#a5432f]"
-                      >
-                        Issue Refund
-                      </button>
+                          Issue Refund
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+
+              {totalOrderPages > 1 && (
+                <PaginationControls
+                  page={orderPage}
+                  totalPages={totalOrderPages}
+                  totalItems={visibleOrders.length}
+                  pageSize={ORDERS_PER_PAGE}
+                  onPageChange={setOrderPage}
+                />
+              )}
+            </>
           )}
         </div>
       )}
@@ -572,13 +778,23 @@ export function AdminDashboard() {
       {tab === "products" && (
         <div className="mt-6 space-y-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <input
-              type="search"
-              value={productQuery}
-              onChange={(e) => setProductQuery(e.target.value)}
-              placeholder="Search by name, slug, fabric, category…"
-              className="field max-w-sm py-2 text-sm"
-            />
+            <div className="flex flex-1 flex-wrap items-center gap-3">
+              <input
+                type="search"
+                value={productQuery}
+                onChange={(e) => setProductQuery(e.target.value)}
+                placeholder="Search by name, slug, fabric, category…"
+                className="field max-w-sm py-2 text-sm"
+              />
+              <label className="flex items-center gap-2 text-xs font-medium">
+                <input
+                  type="checkbox"
+                  checked={lowStockOnly}
+                  onChange={(e) => setLowStockOnly(e.target.checked)}
+                />
+                Low / sold-out sizes only
+              </label>
+            </div>
             <button
               onClick={() =>
                 setEditingProduct({
@@ -635,8 +851,10 @@ export function AdminDashboard() {
           )}
 
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {visibleProducts.map((p) => {
-              const variants: any[] = Array.isArray(p.product_variants) ? p.product_variants : [];
+            {paginatedProducts.map((p) => {
+              const variants: any[] = Array.isArray(p.product_variants)
+                ? p.product_variants
+                : [];
               const unstitchedVar = variants.find((v) => v.stitching === "unstitched");
               const stitchedVars = variants.filter((v) => v.stitching === "stitched");
               return (
@@ -720,6 +938,130 @@ export function AdminDashboard() {
               );
             })}
           </div>
+
+          {totalProductPages > 1 && (
+            <PaginationControls
+              page={productPage}
+              totalPages={totalProductPages}
+              totalItems={visibleProducts.length}
+              pageSize={PRODUCTS_PER_PAGE}
+              onPageChange={setProductPage}
+            />
+          )}
+        </div>
+      )}
+
+      {/* CATEGORIES TAB */}
+      {tab === "categories" && (
+        <div className="mt-6 space-y-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-xs text-ink/60">
+              Manage storefront categories, descriptions, hero images, and subcategory filter chips.
+            </p>
+            <button
+              type="button"
+              onClick={() =>
+                setEditingCategory({
+                  slug: "",
+                  name: "",
+                  nav_group: "Everyday",
+                  subcategories: [],
+                  description: "",
+                  image_url: "",
+                  sort_order: dbCategories.length + 1,
+                  is_active: true,
+                })
+              }
+              className="btn btn-primary px-5 py-2.5 text-xs"
+            >
+              + New Category
+            </button>
+          </div>
+
+          {editingCategory && (
+            <CategoryEditorModal
+              initial={editingCategory}
+              busy={busy}
+              onClose={() => setEditingCategory(null)}
+              onSave={async (payload) => {
+                setBusy(true);
+                setBanner(null);
+                try {
+                  await upsertCategoryAction(token, payload);
+                  setEditingCategory(null);
+                  await refreshAll(token);
+                  setBanner({
+                    kind: "ok",
+                    text: `Saved category "${payload.name}".`,
+                  });
+                } catch (err) {
+                  setBanner({
+                    kind: "err",
+                    text: err instanceof Error ? err.message : "Failed to save category.",
+                  });
+                } finally {
+                  setBusy(false);
+                }
+              }}
+            />
+          )}
+
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {dbCategories.map((cat: any) => (
+              <div
+                key={cat.slug}
+                className="flex flex-col justify-between rounded-2xl border border-line bg-ivory p-4"
+              >
+                <div>
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <h3 className="font-semibold">{cat.name}</h3>
+                      <p className="font-mono text-xs text-ink/55">{cat.slug}</p>
+                    </div>
+                    <span className="rounded-full bg-mist px-2.5 py-0.5 text-[11px] font-medium">
+                      {cat.nav_group || "Everyday"}
+                    </span>
+                  </div>
+                  <p className="mt-2 line-clamp-2 text-xs text-ink/65">
+                    {cat.description || cat.blurb || "No description"}
+                  </p>
+                  {Array.isArray(cat.subcategories) && cat.subcategories.length > 0 && (
+                    <div className="mt-3 flex flex-wrap gap-1">
+                      {cat.subcategories.map((sub: string) => (
+                        <span
+                          key={sub}
+                          className="rounded-full bg-sage-soft px-2 py-0.5 text-[11px] font-medium text-sage-deep"
+                        >
+                          {sub}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <div className="mt-4 flex justify-end border-t border-line pt-3">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setEditingCategory({
+                        id: cat.id,
+                        slug: cat.slug,
+                        name: cat.name,
+                        nav_group: cat.nav_group || "Everyday",
+                        subcategories: cat.subcategories ?? [],
+                        description: cat.description || cat.blurb || "",
+                        image_url: cat.image_url || cat.image || "",
+                        sort_order: Number(cat.sort_order ?? 0),
+                        is_active: cat.is_active !== false,
+                      })
+                    }
+                    className="text-xs font-semibold underline underline-offset-4"
+                  >
+                    Edit category &amp; subcategories
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
@@ -728,7 +1070,8 @@ export function AdminDashboard() {
         <div className="mt-6 space-y-5">
           <div className="flex items-center justify-between gap-3">
             <p className="text-xs text-ink/60">
-              Manage public and private/influencer promo codes, category restrictions, and usage quotas.
+              Manage public and private/influencer promo codes, category restrictions, and usage
+              quotas.
             </p>
             <button
               onClick={() =>
@@ -1026,6 +1369,203 @@ export function AdminDashboard() {
   );
 }
 
+function PaginationControls({
+  page,
+  totalPages,
+  totalItems,
+  pageSize,
+  onPageChange,
+}: {
+  page: number;
+  totalPages: number;
+  totalItems: number;
+  pageSize: number;
+  onPageChange: (next: number) => void;
+}) {
+  const start = (page - 1) * pageSize + 1;
+  const end = Math.min(totalItems, page * pageSize);
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-line bg-ivory px-4 py-3 text-xs">
+      <span className="text-ink/65">
+        Showing <strong>{start}</strong>–<strong>{end}</strong> of{" "}
+        <strong>{totalItems}</strong>
+      </span>
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          disabled={page <= 1}
+          onClick={() => onPageChange(page - 1)}
+          className="rounded-lg border border-line bg-mist px-3 py-1.5 font-medium disabled:opacity-40"
+        >
+          ← Previous
+        </button>
+        <span className="px-2 font-mono">
+          Page {page} / {totalPages}
+        </span>
+        <button
+          type="button"
+          disabled={page >= totalPages}
+          onClick={() => onPageChange(page + 1)}
+          className="rounded-lg border border-line bg-mist px-3 py-1.5 font-medium disabled:opacity-40"
+        >
+          Next →
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function CategoryEditorModal({
+  initial,
+  busy,
+  onClose,
+  onSave,
+}: {
+  initial: any;
+  busy: boolean;
+  onClose: () => void;
+  onSave: (payload: any) => Promise<void>;
+}) {
+  const [form, setForm] = useState({
+    id: initial.id,
+    slug: initial.slug ?? "",
+    name: initial.name ?? "",
+    nav_group: (initial.nav_group ?? "Everyday") as "Everyday" | "Special" | "More",
+    subcategoriesText: Array.isArray(initial.subcategories)
+      ? initial.subcategories.join(", ")
+      : "",
+    description: initial.description ?? "",
+    image_url: initial.image_url ?? "",
+    sort_order: String(initial.sort_order ?? 1),
+    is_active: initial.is_active !== false,
+  });
+
+  return (
+    <div className="rounded-2xl border border-line bg-ivory p-6">
+      <div className="flex items-center justify-between">
+        <h3 className="display text-3xl">
+          {form.id ? "edit category" : "new category"}
+        </h3>
+        <button type="button" onClick={onClose} className="text-xs underline">
+          Close
+        </button>
+      </div>
+
+      <div className="mt-5 grid gap-4 sm:grid-cols-3">
+        <div>
+          <label className="mb-1 block text-xs font-medium">Category Name</label>
+          <input
+            value={form.name}
+            onChange={(e) => {
+              const name = e.target.value;
+              const autoSlug = !form.id
+                ? name
+                    .toLowerCase()
+                    .replace(/[^a-z0-9]+/g, "-")
+                    .replace(/^-|-$/g, "")
+                : form.slug;
+              setForm({ ...form, name, slug: autoSlug });
+            }}
+            className="field"
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-xs font-medium">Slug (URL key)</label>
+          <input
+            value={form.slug}
+            onChange={(e) => setForm({ ...form, slug: e.target.value.toLowerCase() })}
+            className="field font-mono text-sm"
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-xs font-medium">Menu Group</label>
+          <select
+            value={form.nav_group}
+            onChange={(e) =>
+              setForm({
+                ...form,
+                nav_group: e.target.value as "Everyday" | "Special" | "More",
+              })
+            }
+            className="field"
+          >
+            <option value="Everyday">Everyday</option>
+            <option value="Special">Special</option>
+            <option value="More">More</option>
+          </select>
+        </div>
+        <div className="sm:col-span-2">
+          <label className="mb-1 block text-xs font-medium">
+            Subcategories (comma-separated, e.g. Cotton, Rayon, Muslin)
+          </label>
+          <input
+            value={form.subcategoriesText}
+            onChange={(e) => setForm({ ...form, subcategoriesText: e.target.value })}
+            placeholder="Cotton, Rayon, Muslin"
+            className="field"
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-xs font-medium">Sort Order</label>
+          <input
+            type="number"
+            min={0}
+            value={form.sort_order}
+            onChange={(e) => setForm({ ...form, sort_order: e.target.value })}
+            className="field"
+          />
+        </div>
+        <div className="sm:col-span-3">
+          <label className="mb-1 block text-xs font-medium">Hero Image URL</label>
+          <input
+            value={form.image_url}
+            onChange={(e) => setForm({ ...form, image_url: e.target.value })}
+            className="field font-mono text-xs"
+          />
+        </div>
+        <div className="sm:col-span-3">
+          <label className="mb-1 block text-xs font-medium">Description / Blurb</label>
+          <textarea
+            rows={2}
+            value={form.description}
+            onChange={(e) => setForm({ ...form, description: e.target.value })}
+            className="field text-sm"
+          />
+        </div>
+      </div>
+
+      <div className="mt-5 flex justify-end gap-2">
+        <button type="button" onClick={onClose} className="btn btn-ghost px-4 py-2 text-xs">
+          Cancel
+        </button>
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() =>
+            onSave({
+              id: form.id,
+              slug: form.slug.trim(),
+              name: form.name.trim(),
+              nav_group: form.nav_group,
+              subcategories: form.subcategoriesText
+                .split(",")
+                .map((s: string) => s.trim())
+                .filter(Boolean),
+              description: form.description.trim(),
+              image_url: form.image_url.trim(),
+              sort_order: Number(form.sort_order || 0),
+              is_active: form.is_active,
+            })
+          }
+          className="btn btn-primary px-5 py-2 text-xs"
+        >
+          Save Category
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function ProductEditorModal({
   initial,
   dbCategories,
@@ -1100,7 +1640,9 @@ function ProductEditorModal({
   const hasUnstitched = form.price_unstitched.trim() !== "";
   const hasStitched = form.price_stitched.trim() !== "";
 
-  const unstitchedStockNum = hasUnstitched ? Math.max(0, Math.floor(form.unstitched_stock || 0)) : 0;
+  const unstitchedStockNum = hasUnstitched
+    ? Math.max(0, Math.floor(form.unstitched_stock || 0))
+    : 0;
   const stitchedStockSum = hasStitched
     ? form.sizes.reduce(
         (sum, sz) => sum + Math.max(0, Math.floor(Number(form.size_stocks[sz] ?? 0))),
@@ -1112,7 +1654,6 @@ function ProductEditorModal({
   const primaryCategory = form.categories[0] ?? "lawns";
   const secondaryCategories = form.categories.slice(1);
 
-  // Subcategories defined in DB for the currently selected categories
   const matchingSubcategoryGroups = selectableCategories.filter(
     (c) =>
       form.categories.includes(c.slug as CategorySlug) &&
@@ -1302,7 +1843,9 @@ function ProductEditorModal({
           />
         </div>
         <div>
-          <label className="mb-1 block text-xs font-medium">Unstitched Price (LKR, blank if stitched-only)</label>
+          <label className="mb-1 block text-xs font-medium">
+            Unstitched Price (LKR, blank if stitched-only)
+          </label>
           <input
             type="number"
             value={form.price_unstitched}
@@ -1321,15 +1864,16 @@ function ProductEditorModal({
         </div>
       </div>
 
-      {/* Inventory Breakdown: Unstitched Stock + Per-Size Stitched Stock */}
+      {/* Inventory Breakdown */}
       <div className="mt-5 rounded-2xl border border-line bg-mist/40 p-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-ink/70">
+            <p className="text-xs font-semibold tracking-wider text-ink/70 uppercase">
               Inventory &amp; Stock by Size
             </p>
             <p className="text-xs text-ink/55">
-              Stock is tracked separately for each option and size. Total stock updates automatically.
+              Stock is tracked separately for each option and size. Total stock updates
+              automatically.
             </p>
           </div>
           <span className="rounded-full bg-ink px-3.5 py-1 text-xs font-semibold text-ivory">
@@ -1469,7 +2013,9 @@ function ProductEditorModal({
           />
         </div>
         <div>
-          <label className="mb-1 block text-xs font-medium">Included Pieces (one per line)</label>
+          <label className="mb-1 block text-xs font-medium">
+            Included Pieces (one per line)
+          </label>
           <textarea
             rows={3}
             value={form.piecesText}
@@ -1509,7 +2055,9 @@ function ProductEditorModal({
               was_price_unstitched: form.was_price_unstitched
                 ? Number(form.was_price_unstitched)
                 : null,
-              was_price_stitched: form.was_price_stitched ? Number(form.was_price_stitched) : null,
+              was_price_stitched: form.was_price_stitched
+                ? Number(form.was_price_stitched)
+                : null,
               images: form.imagesText
                 .split("\n")
                 .map((s: string) => s.trim())
@@ -1686,7 +2234,9 @@ function CouponEditorModal({
         </div>
 
         <div>
-          <label className="mb-1 block text-xs font-medium">Expiry Date &amp; Time (optional)</label>
+          <label className="mb-1 block text-xs font-medium">
+            Expiry Date &amp; Time (optional)
+          </label>
           <input
             type="datetime-local"
             value={form.expires_at}
@@ -1992,6 +2542,3 @@ function DepositEditorModal({
     </div>
   );
 }
-
-
-
