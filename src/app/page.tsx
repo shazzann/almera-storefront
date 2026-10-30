@@ -24,7 +24,7 @@ export default function Home() {
       <WardrobeHero image={editorial.hero} />
 
       {/* Categories */}
-      <section className="pb-16 sm:pb-24" aria-labelledby="drawers">
+      <section className="pb-8 sm:pb-12" aria-labelledby="drawers">
         <CategoryRail heading={<SectionHead eyebrow="The wardrobe" title={<>shop by <em>drawer</em></>} id="drawers" />} />
       </section>
 

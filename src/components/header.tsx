@@ -50,6 +50,7 @@ export function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [shopOpen, setShopOpen] = useState(false);
+  const [categoriesOpen, setCategoriesOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const closeMenu = useCallback(() => setMenuOpen(false), []);
   const closeSearch = useCallback(() => setSearchOpen(false), []);
@@ -148,20 +149,30 @@ export function Header() {
 
       <Sheet open={menuOpen} onClose={closeMenu} side="left" title="almera">
         <nav className="px-5 py-6" aria-label="Mobile">
-          <p className="eyebrow mb-4 text-gold-deep">Shop the wardrobe</p>
-          <ul className="space-y-1">
-            {categories.map((c) => (
-              <li key={c.slug}>
-                <Link href={`/shop/${c.slug}`} onNavigate={closeMenu} className="group flex items-center gap-4 rounded-2xl p-1.5 pr-3 hover:bg-mist">
-                  <span className="arch relative h-14 w-11 shrink-0 overflow-hidden bg-sage-soft">
-                    <Image src={c.image} alt="" fill sizes="44px" className="object-cover" />
-                  </span>
-                  <span className="display flex-1 text-[1.45rem]">{c.name}</span>
-                  <ArrowIcon className="size-4 opacity-40 transition group-hover:translate-x-1 group-hover:opacity-100" />
-                </Link>
-              </li>
-            ))}
-          </ul>
+          <button
+            onClick={() => setCategoriesOpen((o) => !o)}
+            aria-expanded={categoriesOpen}
+            aria-controls="menu-categories"
+            className="flex min-h-14 w-full items-center justify-between gap-4 rounded-2xl pr-3 text-left"
+          >
+            <span className="display text-[1.9rem]">categories</span>
+            <ChevronIcon className={`size-4 transition-transform duration-300 ${categoriesOpen ? "-rotate-90" : "rotate-90"}`} />
+          </button>
+          <div id="menu-categories" className={`grid transition-[grid-template-rows,visibility] duration-300 ${categoriesOpen ? "visible grid-rows-[1fr]" : "invisible grid-rows-[0fr]"}`}>
+            <ul className="min-h-0 space-y-1 overflow-hidden">
+              {categories.map((c) => (
+                <li key={c.slug}>
+                  <Link href={`/shop/${c.slug}`} onNavigate={closeMenu} className="group flex items-center gap-4 rounded-2xl p-1.5 pr-3 hover:bg-mist">
+                    <span className="arch relative h-14 w-11 shrink-0 overflow-hidden bg-sage-soft">
+                      <Image src={c.image} alt="" fill sizes="44px" className="object-cover" />
+                    </span>
+                    <span className="display flex-1 text-[1.45rem]">{c.name}</span>
+                    <ArrowIcon className="size-4 opacity-40 transition group-hover:translate-x-1 group-hover:opacity-100" />
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
           <Link href="/shop" onNavigate={closeMenu} className="btn btn-primary mt-6 w-full">
             Shop all new arrivals
           </Link>
