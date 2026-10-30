@@ -3,7 +3,8 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { ShopHeader } from "@/components/shop-header";
 import { ShopView } from "@/components/shop-view";
-import { categories, getCategory, productsIn } from "@/lib/catalog";
+import { categories, getCategory } from "@/lib/catalog";
+import { getProductsByCategory } from "@/lib/catalog.server";
 
 export function generateStaticParams() {
   return categories.map((c) => ({ category: c.slug }));
@@ -44,10 +45,11 @@ function CategorySkeleton() {
 async function CategoryContent({ params }: Pick<PageProps<"/shop/[category]">, "params">) {
   const c = getCategory((await params).category);
   if (!c) notFound();
+  const items = await getProductsByCategory(c.slug);
   return (
     <>
       <ShopHeader title={c.name} blurb={c.blurb} active={c.slug} />
-      <ShopView key={c.slug} items={productsIn(c.slug)} showCategoryFilter={false} showStitchingFilter={!["ready-to-wear", "western"].includes(c.slug)} subcategories={c.subcategories} />
+      <ShopView key={c.slug} items={items} showCategoryFilter={false} showStitchingFilter={!["ready-to-wear", "western"].includes(c.slug)} subcategories={c.subcategories} />
       <div className="h-20" />
     </>
   );

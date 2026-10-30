@@ -3,8 +3,9 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { categories, categoryGroups, formatLKR, getCategory, products, startingPrice } from "@/lib/catalog";
+import { useCallback, useEffect, useState } from "react";
+import { searchProductsAction } from "@/actions/catalog";
+import { categories, categoryGroups, formatLKR, getCategory, startingPrice, type Product } from "@/lib/catalog";
 import { cart, totals, useCart } from "@/lib/cart";
 import { Wordmark } from "./brand";
 import { ArrowIcon, BagIcon, ChevronIcon, InstagramIcon, MenuIcon, SearchIcon, WhatsAppIcon } from "./icons";
@@ -91,7 +92,6 @@ export function Header() {
                 onPointerLeave={(e) => e.pointerType === "mouse" && setShopOpen(false)}
               >
                 <button
-                  // Hover already opened it for mouse users, so a click shouldn't close it again.
                   onClick={(e) => setShopOpen((o) => ((e.nativeEvent as PointerEvent).pointerType === "mouse" ? true : !o))}
                   aria-expanded={shopOpen} className={`${navLink} flex h-full items-center gap-1.5`}
                 >
@@ -224,10 +224,28 @@ const SUGGESTIONS = ["Lawn", "Lehenga", "Hakoba", "Muslin", "Cotton", "Denim"];
 
 function SearchSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [q, setQ] = useState("");
-  const results = useMemo(() => {
-    const term = q.trim().toLowerCase();
-    if (!term) return [];
-    return products.filter((p) => [p.name, p.colour, p.fabric, p.subcategory, ...p.categories, p.description].join(" ").toLowerCase().includes(term));
+  const [results, setResults] = useState<Product[]>([]);
+
+  useEffect(() => {
+    const term = q.trim();
+    if (!term) {
+      setResults([]);
+      return;
+    }
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      searchProductsAction(term)
+        .then((res) => {
+          if (!cancelled) setResults(res);
+        })
+        .catch(() => {
+          if (!cancelled) setResults([]);
+        });
+    }, 180);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
   }, [q]);
 
   return (

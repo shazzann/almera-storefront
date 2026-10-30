@@ -5,11 +5,8 @@ import { CategoryRail } from "@/components/category-rail";
 import { ArrowIcon, InstagramIcon, NeedleIcon } from "@/components/icons";
 import { ProductCard } from "@/components/product-card";
 import { WardrobeHero } from "@/components/wardrobe-hero";
-import { STITCHING_FEE, editorial, formatLKR, products, texture } from "@/lib/catalog";
-
-const newIn = products.filter((p) => p.tags.includes("new")).slice(0, 8);
-const loved = products.filter((p) => p.tags.includes("bestseller"));
-const lehengas = products.filter((p) => p.subcategory === "Lehengas").slice(0, 3);
+import { STITCHING_FEE, editorial, formatLKR, texture } from "@/lib/catalog";
+import { getAllProducts } from "@/lib/catalog.server";
 
 const NOTES = [
   { quote: "The lawn was even softer than in the reel, and it reached Kandy in two days. Already ordered my Eid suit.", name: "Shifana", city: "Kandy" },
@@ -17,11 +14,23 @@ const NOTES = [
   { quote: "My walima lehenga was exactly the colour I was shown. They answered every question on WhatsApp the same day.", name: "Aathika", city: "Batticaloa" },
 ];
 
+export default async function Home() {
+  const products = await getAllProducts();
+  const newIn = products.filter((p) => p.tags.includes("new")).slice(0, 8);
+  const loved = products.filter((p) => p.tags.includes("bestseller"));
+  const lehengas = products.filter((p) => p.subcategory === "Lehengas").slice(0, 3);
+  const instaTiles = [
+    texture.goldThread,
+    products[0]?.images[0] ?? texture.zardozi,
+    texture.dupatta,
+    products[1]?.images[0] ?? texture.chikan,
+    texture.bloom,
+    products[2]?.images[0] ?? texture.fabricStack,
+  ];
 
-export default function Home() {
   return (
     <>
-      <WardrobeHero image={editorial.hero} />
+      <WardrobeHero image={editorial.hero} cover={products[0]} />
 
       {/* Categories */}
       <section className="pb-8 sm:pb-12" aria-labelledby="drawers">
@@ -29,16 +38,18 @@ export default function Home() {
       </section>
 
       {/* New arrivals */}
-      <section className="bg-ivory py-16 sm:py-24" aria-labelledby="just-in">
-        <div className="mx-auto max-w-7xl px-4 sm:px-8">
-          <SectionHead eyebrow="New arrivals" title={<>just <em>in</em></>} id="just-in" href="/shop" cta="View all" />
-          <div className="mt-10 grid grid-cols-2 gap-x-3 gap-y-10 sm:grid-cols-3 sm:gap-x-6 lg:grid-cols-4">
-            {newIn.map((p) => (
-              <ProductCard key={p.slug} product={p} />
-            ))}
+      {newIn.length > 0 && (
+        <section className="bg-ivory py-16 sm:py-24" aria-labelledby="just-in">
+          <div className="mx-auto max-w-7xl px-4 sm:px-8">
+            <SectionHead eyebrow="New arrivals" title={<>just <em>in</em></>} id="just-in" href="/shop" cta="View all" />
+            <div className="mt-10 grid grid-cols-2 gap-x-3 gap-y-10 sm:grid-cols-3 sm:gap-x-6 lg:grid-cols-4">
+              {newIn.map((p) => (
+                <ProductCard key={p.slug} product={p} />
+              ))}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* Lehenga editorial */}
       <section className="bg-ink text-ivory" aria-labelledby="bridal">
@@ -52,16 +63,18 @@ export default function Home() {
             <h2 id="bridal" className="display mt-4 text-5xl sm:text-6xl">
               for the nikah, the mehndi <em className="text-sage">&amp; the walima</em>
             </h2>
-            <div className="mt-10 grid grid-cols-3 gap-3">
-              {lehengas.map((p) => (
-                <Link key={p.slug} href={`/product/${p.slug}`} className="group">
-                  <div className="arch-soft relative aspect-[3/4] overflow-hidden bg-olive">
-                    <Image src={p.images[0]} alt={p.name} fill sizes="(min-width: 1024px) 12vw, 30vw" className="object-cover transition duration-1000 group-hover:scale-105" />
-                  </div>
-                  <p className="mt-2 text-[0.8rem] leading-snug text-ivory/80 group-hover:text-sage">{p.name}</p>
-                </Link>
-              ))}
-            </div>
+            {lehengas.length > 0 && (
+              <div className="mt-10 grid grid-cols-3 gap-3">
+                {lehengas.map((p) => (
+                  <Link key={p.slug} href={`/product/${p.slug}`} className="group">
+                    <div className="arch-soft relative aspect-[3/4] overflow-hidden bg-olive">
+                      <Image src={p.images[0]} alt={p.name} fill sizes="(min-width: 1024px) 12vw, 30vw" className="object-cover transition duration-1000 group-hover:scale-105" />
+                    </div>
+                    <p className="mt-2 text-[0.8rem] leading-snug text-ivory/80 group-hover:text-sage">{p.name}</p>
+                  </Link>
+                ))}
+              </div>
+            )}
             <Link href="/shop/occasion" className="btn mt-10 self-start border border-ivory/50 hover:bg-ivory hover:text-ink">
               Shop occasion wear <ArrowIcon className="size-4" />
             </Link>
@@ -70,19 +83,20 @@ export default function Home() {
       </section>
 
       {/* Most loved */}
-      <section className="py-16 sm:py-24" aria-labelledby="loved">
-        <div className="mx-auto max-w-7xl px-4 sm:px-8">
-          <SectionHead eyebrow="Ordered again and again" title={<>most <em>loved</em></>} id="loved" href="/shop" cta="Shop all" />
-        </div>
-        <div className="no-scrollbar mt-10 flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-px-4 px-4 sm:gap-6 sm:px-8 lg:mx-auto lg:max-w-7xl">
-          {loved.map((p) => (
-            <div key={p.slug} className="w-[46vw] shrink-0 snap-start sm:w-[30vw] lg:w-[calc((100%-4.5rem)/4)]">
-              <ProductCard product={p} sizes="(min-width: 1024px) 22vw, 46vw" />
-            </div>
-          ))}
-        </div>
-      </section>
-
+      {loved.length > 0 && (
+        <section className="py-16 sm:py-24" aria-labelledby="loved">
+          <div className="mx-auto max-w-7xl px-4 sm:px-8">
+            <SectionHead eyebrow="Ordered again and again" title={<>most <em>loved</em></>} id="loved" href="/shop" cta="Shop all" />
+          </div>
+          <div className="no-scrollbar mt-10 flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-px-4 px-4 sm:gap-6 sm:px-8 lg:mx-auto lg:max-w-7xl">
+            {loved.map((p) => (
+              <div key={p.slug} className="w-[46vw] shrink-0 snap-start sm:w-[30vw] lg:w-[calc((100%-4.5rem)/4)]">
+                <ProductCard product={p} sizes="(min-width: 1024px) 22vw, 46vw" />
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Stitched or unstitched */}
       <section className="py-16 sm:py-24" aria-labelledby="stitching">
@@ -143,7 +157,7 @@ export default function Home() {
             </a>
           </div>
           <div className="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-6 sm:gap-3">
-            {[texture.goldThread, products[1].images[0], texture.dupatta, products[17].images[0], texture.bloom, products[9].images[0]].map((src, i) => (
+            {instaTiles.map((src, i) => (
               <a key={i} href="https://www.instagram.com/almera.lk/" target="_blank" rel="noreferrer" className="group relative aspect-square overflow-hidden rounded-xl bg-sage-soft" aria-label="Open almera on Instagram">
                 <Image src={src} alt="" fill sizes="(min-width: 640px) 16vw, 33vw" className="object-cover transition duration-700 group-hover:scale-105" />
               </a>

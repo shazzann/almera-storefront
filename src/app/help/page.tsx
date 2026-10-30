@@ -41,7 +41,7 @@ export default function HelpPage() {
           ))}
         </div>
         <p className="mt-4 leading-relaxed text-ink/75">
-          Standard delivery is free on orders over {formatLKR(FREE_DELIVERY_FROM)}. Stitched orders take 5–7 days before dispatch. We deliver to all 25 districts.
+          Delivery is free on orders over {formatLKR(FREE_DELIVERY_FROM)}. Stitched orders take 5–7 days before dispatch. We deliver to all 25 districts.
         </p>
       </Block>
 

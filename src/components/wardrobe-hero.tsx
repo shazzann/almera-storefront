@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { formatLKR, getProduct } from "@/lib/catalog";
+import { formatLKR, startingPrice, type Product } from "@/lib/catalog";
 import { ArrowIcon } from "./icons";
 
 /** One wardrobe door. The fanlight rays and panels echo the wardrobe in almera's logo. */
@@ -28,9 +28,7 @@ function Door({ side }: { side: "left" | "right" }) {
   );
 }
 
-export function WardrobeHero({ image }: { image: string }) {
-  const cover = getProduct("jade-tiered-lehenga")!;
-
+export function WardrobeHero({ image, cover }: { image: string; cover?: Product }) {
   return (
     <section className="relative overflow-hidden">
       <div className="mx-auto grid max-w-7xl items-center gap-8 px-4 pt-6 pb-14 sm:px-8 lg:grid-cols-[1.05fr_1fr] lg:gap-16 lg:pt-10 lg:pb-24">
@@ -55,8 +53,8 @@ export function WardrobeHero({ image }: { image: string }) {
             <div aria-hidden className="arch absolute inset-0 border border-gold/60" />
             <div className="arch relative aspect-[4/5] overflow-hidden bg-sage [perspective:1600px]">
               <Image
-                src={image}
-                alt="Model in a jade tiered lehenga seated beneath an arched window"
+                src={cover?.images[0] || image}
+                alt={cover?.name ?? "Model in a jade tiered lehenga seated beneath an arched window"}
                 fill
                 preload
                 sizes="(min-width: 1024px) 30rem, 92vw"
@@ -66,19 +64,21 @@ export function WardrobeHero({ image }: { image: string }) {
               <Door side="right" />
             </div>
           </div>
-          <Link
-            href={`/product/${cover.slug}`}
-            className="group mt-3 flex items-center justify-between gap-4 border-b border-line pb-3 text-sm"
-          >
-            <span>
-              <span className="text-ink/55">On the cover · </span>
-              {cover.name}
-            </span>
-            <span className="flex items-center gap-2 font-semibold">
-              {formatLKR(cover.price.stitched!)}
-              <ArrowIcon className="size-4 transition group-hover:translate-x-1" />
-            </span>
-          </Link>
+          {cover && (
+            <Link
+              href={`/product/${cover.slug}`}
+              className="group mt-3 flex items-center justify-between gap-4 border-b border-line pb-3 text-sm"
+            >
+              <span>
+                <span className="text-ink/55">On the cover · </span>
+                {cover.name}
+              </span>
+              <span className="flex items-center gap-2 font-semibold">
+                {formatLKR(startingPrice(cover))}
+                <ArrowIcon className="size-4 transition group-hover:translate-x-1" />
+              </span>
+            </Link>
+          )}
         </div>
       </div>
     </section>
