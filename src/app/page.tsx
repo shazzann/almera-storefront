@@ -1,10 +1,11 @@
 import Image from "next/image";
 import Link from "next/link";
 import { WardrobeMark } from "@/components/brand";
+import { CategoryRail } from "@/components/category-rail";
 import { ArrowIcon, InstagramIcon, NeedleIcon } from "@/components/icons";
 import { ProductCard } from "@/components/product-card";
 import { WardrobeHero } from "@/components/wardrobe-hero";
-import { STITCHING_FEE, categories, editorial, formatLKR, products, texture } from "@/lib/catalog";
+import { STITCHING_FEE, editorial, formatLKR, products, texture } from "@/lib/catalog";
 
 const newIn = products.filter((p) => p.tags.includes("new")).slice(0, 8);
 const loved = products.filter((p) => p.tags.includes("bestseller"));
@@ -24,19 +25,7 @@ export default function Home() {
 
       {/* Categories */}
       <section className="pb-16 sm:pb-24" aria-labelledby="drawers">
-        <div className="mx-auto max-w-7xl px-4 sm:px-8">
-          <SectionHead eyebrow="The wardrobe" title={<>shop by <em>drawer</em></>} id="drawers" />
-        </div>
-        <div className="mx-auto mt-8 flex max-w-3xl flex-wrap justify-center gap-x-3 gap-y-7 px-4 sm:gap-x-5 sm:gap-y-10 sm:px-8 lg:max-w-7xl lg:gap-x-6">
-          {categories.map((c) => (
-            <Link key={c.slug} href={`/shop/${c.slug}`} className="group w-[calc((100%-1.5rem)/3)] sm:w-[calc((100%-2.5rem)/3)] lg:w-[calc((100%-6rem)/5)]">
-              <div className="arch relative aspect-[3/4] overflow-hidden bg-sage-soft">
-                <Image src={c.image} alt="" fill sizes="(min-width: 1024px) 18vw, 31vw" className="object-cover transition duration-[1.4s] ease-[var(--ease-out-soft)] group-hover:scale-105" />
-              </div>
-              <h3 className="display mt-3 text-center text-[1.15rem] leading-[1.05] group-hover:text-sage-deep sm:mt-4 sm:text-3xl">{c.name}</h3>
-            </Link>
-          ))}
-        </div>
+        <CategoryRail heading={<SectionHead eyebrow="The wardrobe" title={<>shop by <em>drawer</em></>} id="drawers" />} />
       </section>
 
       {/* New arrivals */}
