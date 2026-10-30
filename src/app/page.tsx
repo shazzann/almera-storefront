@@ -40,32 +40,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Stitched or unstitched */}
-      <section className="py-16 sm:py-24" aria-labelledby="stitching">
-        <div className="mx-auto max-w-7xl px-4 sm:px-8">
-          <SectionHead eyebrow="Two ways to wear it" title={<>stitched <em>or</em> unstitched?</>} id="stitching" />
-          <div className="mt-10 grid gap-5 md:grid-cols-2 md:gap-6">
-            <StitchCard
-              image={texture.fabricStack}
-              label="Unstitched"
-              title="the fabric, for your own tailor"
-              points={["Embroidered shirt front, printed back & sleeves", "2.5 m dupatta and 2.5 m trouser fabric", "Ships in 1–2 days"]}
-              href="/shop/lawns"
-              cta="Shop unstitched lawn"
-            />
-            <StitchCard
-              image={texture.chikan}
-              label="Stitched"
-              title="made to your size by our tailors"
-              points={["Standard sizes XS–XL, see the size guide", `Lawn stitching adds ${formatLKR(STITCHING_FEE)}`, "Stitched and pressed in 5–7 days"]}
-              href="/shop/ready-to-wear"
-              cta="Shop ready to wear"
-              accent
-            />
-          </div>
-        </div>
-      </section>
-
       {/* Lehenga editorial */}
       <section className="bg-ink text-ivory" aria-labelledby="bridal">
         <div className="mx-auto grid max-w-7xl lg:grid-cols-2">
@@ -109,6 +83,32 @@ export default function Home() {
         </div>
       </section>
 
+
+      {/* Stitched or unstitched */}
+      <section className="py-16 sm:py-24" aria-labelledby="stitching">
+        <div className="mx-auto max-w-7xl px-4 sm:px-8">
+          <SectionHead eyebrow="Two ways to wear it" title={<>stitched <em>or</em> unstitched?</>} id="stitching" />
+          <div className="mt-10 grid gap-5 md:grid-cols-2 md:gap-6">
+            <StitchCard
+              image={texture.fabricStack}
+              label="Unstitched"
+              title="the fabric, for your own tailor"
+              points={["Embroidered shirt front, printed back & sleeves", "2.5 m dupatta and 2.5 m trouser fabric", "Ships in 1–2 days"]}
+              href="/shop/lawns"
+              cta="Shop unstitched lawn"
+            />
+            <StitchCard
+              image={texture.chikan}
+              label="Stitched"
+              title="made to your size by our tailors"
+              points={["Standard sizes XS–XL, see the size guide", `Lawn stitching adds ${formatLKR(STITCHING_FEE)}`, "Stitched and pressed in 5–7 days"]}
+              href="/shop/ready-to-wear"
+              cta="Shop ready to wear"
+              accent
+            />
+          </div>
+        </div>
+      </section>
 
       {/* Client notes */}
       <section className="py-16 sm:py-24" aria-labelledby="notes">
