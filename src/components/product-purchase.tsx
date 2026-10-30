@@ -85,7 +85,7 @@ export function ProductPurchase({ product: p }: { product: Product }) {
             </button>
           </div>
           <div className="grid grid-cols-5 gap-2">
-            {SIZES.map((s) => (
+            {(p.sizes ?? SIZES).map((s) => (
               <label key={s} className={`grid min-h-12 cursor-pointer place-items-center rounded-xl border text-sm font-semibold transition ${size === s ? "border-ink bg-ink text-ivory" : "border-line bg-ivory hover:border-ink"}`}>
                 <input type="radio" name="size" value={s} checked={size === s} onChange={() => { setSize(s); setSizeError(false); }} className="sr-only" />
                 {s}
@@ -131,7 +131,7 @@ export function ProductPurchase({ product: p }: { product: Product }) {
 
       <Sheet open={guideOpen} onClose={closeGuide} side="bottom" title="size guide">
         <div className="px-5 py-6">
-          <SizeGuideTable />
+          <SizeGuideTable kind={p.sizes ? "denim" : "standard"} />
         </div>
       </Sheet>
     </div>

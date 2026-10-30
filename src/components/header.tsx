@@ -4,10 +4,10 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { categories, formatLKR, products, startingPrice } from "@/lib/catalog";
+import { categories, categoryGroups, formatLKR, getCategory, products, startingPrice } from "@/lib/catalog";
 import { cart, totals, useCart } from "@/lib/cart";
 import { Wordmark } from "./brand";
-import { ArrowIcon, BagIcon, InstagramIcon, MenuIcon, SearchIcon, WhatsAppIcon } from "./icons";
+import { ArrowIcon, BagIcon, ChevronIcon, InstagramIcon, MenuIcon, SearchIcon, WhatsAppIcon } from "./icons";
 import { Sheet } from "./sheet";
 
 const NOTICES = [
@@ -17,10 +17,10 @@ const NOTICES = [
 ];
 
 const NAV = [
-  { href: "/shop", label: "New in" },
-  ...categories.map((c) => ({ href: `/shop/${c.slug}`, label: c.short })),
-  { href: "/about", label: "Our story" },
+  { href: "/shop/lawns", label: "Lawns" },
+  { href: "/shop/occasion", label: "Occasion" },
 ];
+const navLink = "text-[0.72rem] font-semibold tracking-[0.16em] uppercase transition-colors hover:text-sage-deep";
 
 function AnnouncementBar() {
   const [i, setI] = useState(0);
@@ -49,6 +49,7 @@ export function Header() {
   const { count } = totals(lines);
   const [menuOpen, setMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [shopOpen, setShopOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const closeMenu = useCallback(() => setMenuOpen(false), []);
   const closeSearch = useCallback(() => setSearchOpen(false), []);
@@ -60,6 +61,13 @@ export function Header() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
+  useEffect(() => {
+    if (!shopOpen) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setShopOpen(false);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [shopOpen]);
+
   if (pathname === "/checkout") return <CheckoutHeader />;
 
   return (
@@ -69,17 +77,46 @@ export function Header() {
         className={`sticky top-0 z-40 transition-[background-color,box-shadow] duration-300 ${scrolled ? "bg-mist/90 shadow-[0_1px_0_var(--color-line)] backdrop-blur-md" : "bg-mist"}`}
       >
         <div className="mx-auto grid h-16 max-w-7xl grid-cols-[1fr_auto_1fr] items-center px-3 sm:h-20 sm:px-6">
-          <div className="flex items-center">
+          <div className="flex h-full items-center">
             <button onClick={() => setMenuOpen(true)} className="grid size-11 place-items-center rounded-full hover:bg-ivory lg:hidden" aria-label="Open menu">
               <MenuIcon />
             </button>
-            <nav className="hidden items-center gap-7 lg:flex" aria-label="Main">
-              {NAV.slice(0, 4).map((n) => (
-                <Link
-                  key={n.href}
-                  href={n.href}
-                  className={`text-[0.72rem] font-semibold tracking-[0.16em] uppercase transition-colors hover:text-sage-deep ${pathname === n.href ? "text-sage-deep" : ""}`}
+            <nav className="hidden h-full items-center gap-7 lg:flex" aria-label="Main">
+              <Link href="/shop" className={`${navLink} ${pathname === "/shop" ? "text-sage-deep" : ""}`}>New in</Link>
+              <div
+                className="flex h-full items-center"
+                onPointerEnter={(e) => e.pointerType === "mouse" && setShopOpen(true)}
+                onPointerLeave={(e) => e.pointerType === "mouse" && setShopOpen(false)}
+              >
+                <button
+                  // Hover already opened it for mouse users, so a click shouldn't close it again.
+                  onClick={(e) => setShopOpen((o) => ((e.nativeEvent as PointerEvent).pointerType === "mouse" ? true : !o))}
+                  aria-expanded={shopOpen} className={`${navLink} flex h-full items-center gap-1.5`}
                 >
+                  Shop
+                  <ChevronIcon className={`size-3 transition-transform ${shopOpen ? "-rotate-90" : "rotate-90"}`} />
+                </button>
+                <div className={`absolute inset-x-0 top-full border-y border-line bg-ivory shadow-lg transition-[opacity,visibility] duration-200 ${shopOpen ? "visible opacity-100" : "invisible opacity-0"}`}>
+                  <div className="mx-auto grid max-w-7xl grid-cols-3 gap-8 px-8 py-9">
+                    {categoryGroups.map((g) => (
+                      <div key={g.title}>
+                        <p className="eyebrow mb-3 text-gold-deep">{g.title}</p>
+                        <ul>
+                          {g.slugs.map((slug) => (
+                            <li key={slug}>
+                              <Link href={`/shop/${slug}`} onNavigate={() => setShopOpen(false)} className="display block py-1.5 text-[1.7rem] hover:text-sage-deep">
+                                {getCategory(slug)!.name}
+                              </Link>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              {NAV.map((n) => (
+                <Link key={n.href} href={n.href} className={`${navLink} ${pathname === n.href ? "text-sage-deep" : ""}`}>
                   {n.label}
                 </Link>
               ))}
@@ -112,14 +149,14 @@ export function Header() {
       <Sheet open={menuOpen} onClose={closeMenu} side="left" title="almera">
         <nav className="px-5 py-6" aria-label="Mobile">
           <p className="eyebrow mb-4 text-gold-deep">Shop the wardrobe</p>
-          <ul className="space-y-3">
+          <ul className="space-y-1">
             {categories.map((c) => (
               <li key={c.slug}>
                 <Link href={`/shop/${c.slug}`} onNavigate={closeMenu} className="group flex items-center gap-4 rounded-2xl p-1.5 pr-3 hover:bg-mist">
-                  <span className="arch relative h-[4.5rem] w-14 shrink-0 overflow-hidden bg-sage-soft">
-                    <Image src={c.image} alt="" fill sizes="56px" className="object-cover" />
+                  <span className="arch relative h-14 w-11 shrink-0 overflow-hidden bg-sage-soft">
+                    <Image src={c.image} alt="" fill sizes="44px" className="object-cover" />
                   </span>
-                  <span className="display flex-1 text-[1.7rem]">{c.name}</span>
+                  <span className="display flex-1 text-[1.45rem]">{c.name}</span>
                   <ArrowIcon className="size-4 opacity-40 transition group-hover:translate-x-1 group-hover:opacity-100" />
                 </Link>
               </li>
@@ -170,14 +207,14 @@ function CheckoutHeader() {
   );
 }
 
-const SUGGESTIONS = ["Lawn", "Lehenga", "Chikankari", "Co-ord", "Bridal", "Cotton"];
+const SUGGESTIONS = ["Lawn", "Lehenga", "Hakoba", "Muslin", "Cotton", "Denim"];
 
 function SearchSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [q, setQ] = useState("");
   const results = useMemo(() => {
     const term = q.trim().toLowerCase();
     if (!term) return [];
-    return products.filter((p) => [p.name, p.colour, p.fabric, p.category, p.description].join(" ").toLowerCase().includes(term));
+    return products.filter((p) => [p.name, p.colour, p.fabric, p.subcategory, ...p.categories, p.description].join(" ").toLowerCase().includes(term));
   }, [q]);
 
   return (

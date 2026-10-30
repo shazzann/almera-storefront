@@ -48,7 +48,7 @@ function ProductSkeleton() {
 async function ProductDetails({ params }: Pick<PageProps<"/product/[slug]">, "params">) {
   const p = getProduct((await params).slug);
   if (!p) notFound();
-  const category = getCategory(p.category)!;
+  const category = getCategory(p.categories[0])!;
   const options = stitchingOptions(p);
 
   const jsonLd = {
@@ -94,7 +94,7 @@ async function ProductDetails({ params }: Pick<PageProps<"/product/[slug]">, "pa
             </div>
 
             <div className="mt-8 divide-y divide-line border-y border-line">
-              <Detail title="What’s in the set" open>
+              <Detail title="What’s included" open>
                 <ul className="space-y-1.5">
                   {p.pieces.map((x) => (
                     <li key={x} className="flex gap-2.5"><span className="mt-2 size-1 shrink-0 rounded-full bg-gold" />{x}</li>
@@ -102,7 +102,7 @@ async function ProductDetails({ params }: Pick<PageProps<"/product/[slug]">, "pa
                 </ul>
               </Detail>
               <Detail title="Fabric & care">
-                {p.fabric}. Dry clean for the first wash. After that, hand wash cold, separately, and dry in the shade. Iron on the reverse side.
+                {p.fabric}. {p.care ?? "Dry clean for the first wash. After that, hand wash cold, separately, and dry in the shade. Iron on the reverse side."}
               </Detail>
               <Detail title="Delivery">
                 Island-wide courier in 2–4 working days, or next day within Colombo. Stitched orders take 5–7 days before dispatch. Free standard delivery on orders over Rs. 25,000.

@@ -47,6 +47,8 @@ export default function HelpPage() {
 
       <Block id="sizing" title="Sizing">
         <SizeGuideTable />
+        <h3 className="mt-8 mb-3 font-semibold">Denim</h3>
+        <SizeGuideTable kind="denim" />
       </Block>
 
       <Block id="payment" title="Payment">

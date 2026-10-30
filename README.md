@@ -19,7 +19,7 @@ Open http://localhost:3000. For the client meeting, open it on a phone or use th
 | --- | --- |
 | Home, with the wardrobe-door hero | `/` |
 | Shop all, with filters and sort | `/shop` |
-| Category pages | `/shop/lawn`, `/shop/shalwar-kameez`, `/shop/lehengas` |
+| Category pages | `/shop/day-to-day`, `/shop/signature-styles`, `/shop/occasion`, `/shop/pakistani`, `/shop/casual`, `/shop/lawns`, `/shop/lux`, `/shop/ready-to-wear`, `/shop/western` |
 | Product page (stitched/unstitched, sizes, size guide) | `/product/[slug]` |
 | Bag drawer | any page, via the bag icon |
 | Checkout (COD / bank transfer, Sri Lankan districts) | `/checkout` |

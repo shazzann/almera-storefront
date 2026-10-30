@@ -47,7 +47,7 @@ async function CategoryContent({ params }: Pick<PageProps<"/shop/[category]">, "
   return (
     <>
       <ShopHeader title={c.name} blurb={c.blurb} active={c.slug} />
-      <ShopView items={productsIn(c.slug)} showCategoryFilter={false} />
+      <ShopView key={c.slug} items={productsIn(c.slug)} showCategoryFilter={false} showStitchingFilter={!["ready-to-wear", "western"].includes(c.slug)} subcategories={c.subcategories} />
       <div className="h-20" />
     </>
   );

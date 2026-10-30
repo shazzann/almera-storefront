@@ -1,21 +1,33 @@
 // Demo catalogue. Photography is stock imagery from Unsplash standing in for
 // almera's own shoots; names, prices and stock levels are placeholders.
 
-export type CategorySlug = "lawn" | "shalwar-kameez" | "lehengas";
+export type CategorySlug =
+  | "day-to-day"
+  | "signature-styles"
+  | "occasion"
+  | "pakistani"
+  | "casual"
+  | "lawns"
+  | "lux"
+  | "ready-to-wear"
+  | "western";
 export type Stitching = "unstitched" | "stitched";
 
 export type Category = {
   slug: CategorySlug;
   name: string;
-  short: string;
   blurb: string;
   image: string;
+  /** Tap-to-filter chips on the category page, matched against Product.subcategory. */
+  subcategories?: string[];
 };
 
 export type Product = {
   slug: string;
   name: string;
-  category: CategorySlug;
+  /** First entry is the home category, used for breadcrumbs and "more from". Ready to Wear is worked out automatically. */
+  categories: CategorySlug[];
+  subcategory?: string;
   colour: string;
   fabric: string;
   /** Price per stitching option, in LKR. A product offers only the options listed here. */
@@ -27,6 +39,9 @@ export type Product = {
   description: string;
   stock: number;
   tags: ("new" | "bestseller" | "festive")[];
+  /** Overrides the standard XS–XL sizes, and switches the size guide to the denim chart. */
+  sizes?: readonly string[];
+  care?: string;
 };
 
 const u = (id: string) => `https://images.unsplash.com/photo-${id}`;
@@ -48,7 +63,8 @@ export const editorial = {
 };
 
 export const SIZES = ["XS", "S", "M", "L", "XL"] as const;
-export type Size = (typeof SIZES)[number];
+export const DENIM_SIZES = ["26", "28", "30", "32", "34"] as const;
+export type Size = string;
 
 /** Flat charge for stitching an unstitched suit, shown as the difference between options. */
 export const STITCHING_FEE = 3500;
@@ -56,29 +72,70 @@ export const FREE_DELIVERY_FROM = 25000;
 
 export const categories: Category[] = [
   {
-    slug: "lawn",
-    name: "Lawn suits",
-    short: "Lawn",
-    blurb:
-      "Breathable printed and embroidered lawn from Pakistan's favourite labels, made for Sri Lankan heat. Buy the three-piece unstitched or have us stitch it to your size.",
+    slug: "day-to-day",
+    name: "Day to Day",
+    blurb: "Easy cotton, rayon and muslin for work, errands and everything in between. Soft, breathable and made to be worn often.",
+    image: u("1745313452052-0e4e341f326c"),
+    subcategories: ["Cotton", "Rayon", "Muslin"],
+  },
+  {
+    slug: "signature-styles",
+    name: "Signature Styles",
+    blurb: "The pieces almera is known for: semi-rich suits, hakoba embroidery and khushboo, for when you want to look a little more dressed.",
+    image: u("1652953186915-420ae843d1a8"),
+    subcategories: ["Semi Rich", "Hakoba", "Khushboo"],
+  },
+  {
+    slug: "occasion",
+    name: "Occasion",
+    blurb: "Premium festive and occasion wear, from Eid suits to lehengas for the nikah, the mehndi and the walima.",
+    image: u("1746372283841-dbb3838f9935"),
+    subcategories: ["Lehengas"],
+  },
+  {
+    slug: "pakistani",
+    name: "Pakistani",
+    blurb: "Lawn, embroidered suits and bridal wear from Pakistan, chosen piece by piece and delivered across Sri Lanka.",
     image: u("1705920824583-0e783235394d"),
   },
   {
-    slug: "shalwar-kameez",
-    name: "Shalwar kameez",
-    short: "Shalwar kameez",
-    blurb:
-      "Ready-to-wear kurtas, co-ords and shalwar sets. Pressed, packed and ready to wear the day they arrive.",
+    slug: "casual",
+    name: "Casual",
+    blurb: "Relaxed prints and easy co-ords for days out, visits and weekends.",
+    image: u("1764928947261-f5687e0faa4a"),
+  },
+  {
+    slug: "lawns",
+    name: "Lawns",
+    blurb: "Breathable printed and embroidered lawn, made for Sri Lankan heat. Buy the three-piece unstitched or have us stitch it to your size.",
+    image: u("1597983073750-16f5ded1321f"),
+  },
+  {
+    slug: "lux",
+    name: "Lux",
+    blurb: "Our finest pieces, with rich fabrics and dense hand embellishment. Most are one of a kind.",
+    image: u("1747847471517-952a3eb93a89"),
+  },
+  {
+    slug: "ready-to-wear",
+    name: "Ready to Wear",
+    blurb: "Finished outfits, pressed and packed. Wear them the day they arrive.",
     image: u("1733209484732-6b094322a89f"),
   },
   {
-    slug: "lehengas",
-    name: "Lehengas",
-    short: "Lehengas",
-    blurb:
-      "Bridal, walima and mehndi lehengas with hand embellishment. Every piece is checked by hand before it leaves us.",
-    image: u("1746372283841-dbb3838f9935"),
+    slug: "western",
+    name: "Western",
+    blurb: "Denim that goes with everything, from everyday jeans to jackets and co-ords.",
+    image: u("1760624294535-40dfdc84a48f"),
+    subcategories: ["Denim"],
   },
+];
+
+/** How the categories are grouped in the desktop Shop menu. */
+export const categoryGroups: { title: string; slugs: CategorySlug[] }[] = [
+  { title: "Everyday", slugs: ["day-to-day", "casual", "lawns"] },
+  { title: "Special", slugs: ["signature-styles", "occasion", "lux"] },
+  { title: "More", slugs: ["pakistani", "ready-to-wear", "western"] },
 ];
 
 const lawn3 = ["Embroidered shirt front, 1.25 m", "Printed back & sleeves, 1.75 m", "Printed chiffon dupatta, 2.5 m", "Dyed cambric trouser, 2.5 m"];
@@ -91,7 +148,7 @@ export const products: Product[] = [
   {
     slug: "lilac-chikan-lawn-3-piece",
     name: "Lilac chikan lawn",
-    category: "lawn",
+    categories: ["lawns", "pakistani"],
     colour: "Lilac",
     fabric: "Lawn with chikankari front",
     price: { unstitched: 11450, stitched: 14950 },
@@ -105,7 +162,8 @@ export const products: Product[] = [
   {
     slug: "powder-blue-embroidered-lawn",
     name: "Powder blue embroidered lawn",
-    category: "lawn",
+    categories: ["lawns", "pakistani", "signature-styles", "occasion"],
+    subcategory: "Semi Rich",
     colour: "Powder blue",
     fabric: "Premium lawn",
     price: { unstitched: 12950, stitched: 16450 },
@@ -119,7 +177,8 @@ export const products: Product[] = [
   {
     slug: "plum-jacquard-lawn",
     name: "Plum jacquard lawn",
-    category: "lawn",
+    categories: ["lawns", "pakistani", "signature-styles", "occasion", "lux"],
+    subcategory: "Semi Rich",
     colour: "Plum",
     fabric: "Jacquard lawn",
     price: { unstitched: 13450, stitched: 16950 },
@@ -133,7 +192,7 @@ export const products: Product[] = [
   {
     slug: "emerald-garden-lawn",
     name: "Emerald garden lawn",
-    category: "lawn",
+    categories: ["lawns", "casual"],
     colour: "Emerald & coral",
     fabric: "Digital-print lawn",
     price: { unstitched: 9850, stitched: 13350 },
@@ -147,7 +206,7 @@ export const products: Product[] = [
   {
     slug: "ash-grey-lawn-black-dupatta",
     name: "Ash grey lawn, black dupatta",
-    category: "lawn",
+    categories: ["lawns", "pakistani"],
     colour: "Ash grey",
     fabric: "Lawn with embroidered chiffon",
     price: { unstitched: 12450, stitched: 15950 },
@@ -162,7 +221,7 @@ export const products: Product[] = [
   {
     slug: "scarlet-printed-lawn",
     name: "Scarlet printed lawn",
-    category: "lawn",
+    categories: ["lawns", "casual"],
     colour: "Scarlet",
     fabric: "Printed lawn",
     price: { unstitched: 8950, stitched: 12450 },
@@ -176,7 +235,7 @@ export const products: Product[] = [
   {
     slug: "cobalt-everyday-lawn",
     name: "Cobalt everyday lawn",
-    category: "lawn",
+    categories: ["lawns", "casual"],
     colour: "Cobalt",
     fabric: "Printed lawn",
     price: { unstitched: 8450, stitched: 11950 },
@@ -190,7 +249,7 @@ export const products: Product[] = [
   {
     slug: "fuchsia-summer-lawn",
     name: "Fuchsia summer lawn",
-    category: "lawn",
+    categories: ["lawns", "casual"],
     colour: "Fuchsia",
     fabric: "Lawn",
     price: { unstitched: 9450, stitched: 12950 },
@@ -205,7 +264,8 @@ export const products: Product[] = [
   {
     slug: "blush-two-piece",
     name: "Blush cotton two-piece",
-    category: "shalwar-kameez",
+    categories: ["day-to-day", "casual"],
+    subcategory: "Cotton",
     colour: "Blush",
     fabric: "Cotton",
     price: { stitched: 9850 },
@@ -217,22 +277,24 @@ export const products: Product[] = [
     tags: ["new", "bestseller"],
   },
   {
-    slug: "white-mul-kurta-set",
-    name: "White mul kurta set",
-    category: "shalwar-kameez",
+    slug: "white-muslin-kurta-set",
+    name: "White muslin kurta set",
+    categories: ["day-to-day"],
+    subcategory: "Muslin",
     colour: "White",
-    fabric: "Mul cotton",
+    fabric: "Muslin cotton",
     price: { stitched: 10450 },
     images: [u("1733209590486-4ed0bfcbc52a"), texture.chikan],
     pieces: pret2,
-    description: "A crisp white mul kurta with cutwork hem and matching trousers.",
+    description: "A crisp white muslin kurta with cutwork hem and matching trousers.",
     stock: 4,
     tags: ["bestseller"],
   },
   {
     slug: "block-print-kurta-pajama",
     name: "Block print kurta & pajama",
-    category: "shalwar-kameez",
+    categories: ["day-to-day", "casual"],
+    subcategory: "Cotton",
     colour: "Ivory & rust",
     fabric: "Hand block-printed cotton",
     price: { stitched: 11250 },
@@ -245,7 +307,7 @@ export const products: Product[] = [
   {
     slug: "rose-floral-co-ord",
     name: "Rose floral co-ord",
-    category: "shalwar-kameez",
+    categories: ["casual"],
     colour: "Rose",
     fabric: "Cotton voile",
     price: { stitched: 9450 },
@@ -258,7 +320,7 @@ export const products: Product[] = [
   {
     slug: "tea-pink-bow-set",
     name: "Tea pink bow set",
-    category: "shalwar-kameez",
+    categories: ["casual"],
     colour: "Tea pink",
     fabric: "Printed cambric",
     price: { stitched: 8950 },
@@ -271,7 +333,7 @@ export const products: Product[] = [
   {
     slug: "garden-print-co-ord",
     name: "Garden print co-ord",
-    category: "shalwar-kameez",
+    categories: ["casual"],
     colour: "Sage & blush",
     fabric: "Lawn",
     price: { stitched: 10950 },
@@ -284,20 +346,22 @@ export const products: Product[] = [
   {
     slug: "paisley-print-set",
     name: "Paisley print set",
-    category: "shalwar-kameez",
+    categories: ["day-to-day"],
+    subcategory: "Rayon",
     colour: "Multi",
-    fabric: "Viscose",
+    fabric: "Rayon",
     price: { stitched: 11950 },
     images: [u("1765529374927-052599af9c82"), texture.dupatta],
     pieces: pret3,
-    description: "A fluid viscose three-piece with a matching printed dupatta.",
+    description: "A fluid rayon three-piece with a matching printed dupatta.",
     stock: 6,
     tags: [],
   },
   {
     slug: "bagh-print-set",
     name: "Bagh print set",
-    category: "shalwar-kameez",
+    categories: ["day-to-day"],
+    subcategory: "Cotton",
     colour: "Indigo & red",
     fabric: "Cotton",
     price: { stitched: 10250 },
@@ -310,7 +374,8 @@ export const products: Product[] = [
   {
     slug: "maroon-chikankari-kurta",
     name: "Maroon chikankari kurta",
-    category: "shalwar-kameez",
+    categories: ["signature-styles", "occasion"],
+    subcategory: "Semi Rich",
     colour: "Maroon",
     fabric: "Georgette with chikankari",
     price: { stitched: 13950 },
@@ -325,7 +390,8 @@ export const products: Product[] = [
   {
     slug: "jade-tiered-lehenga",
     name: "Jade tiered lehenga",
-    category: "lehengas",
+    categories: ["occasion", "pakistani"],
+    subcategory: "Lehengas",
     colour: "Jade",
     fabric: "Raw silk & organza",
     price: { stitched: 68500 },
@@ -339,7 +405,8 @@ export const products: Product[] = [
   {
     slug: "rose-zardozi-bridal-lehenga",
     name: "Rose zardozi bridal lehenga",
-    category: "lehengas",
+    categories: ["occasion", "pakistani", "lux"],
+    subcategory: "Lehengas",
     colour: "Rose & teal",
     fabric: "Velvet & net",
     price: { stitched: 145000 },
@@ -353,7 +420,8 @@ export const products: Product[] = [
   {
     slug: "marigold-maroon-lehenga",
     name: "Marigold & maroon lehenga",
-    category: "lehengas",
+    categories: ["occasion", "lux"],
+    subcategory: "Lehengas",
     colour: "Marigold",
     fabric: "Silk with mirrorwork",
     price: { stitched: 92500 },
@@ -366,7 +434,8 @@ export const products: Product[] = [
   {
     slug: "lilac-garden-lehenga",
     name: "Lilac garden lehenga",
-    category: "lehengas",
+    categories: ["occasion", "pakistani"],
+    subcategory: "Lehengas",
     colour: "Lilac",
     fabric: "Net with sequins",
     price: { stitched: 74500 },
@@ -379,7 +448,8 @@ export const products: Product[] = [
   {
     slug: "crimson-mughal-bridal",
     name: "Crimson Mughal bridal",
-    category: "lehengas",
+    categories: ["occasion", "pakistani", "lux"],
+    subcategory: "Lehengas",
     colour: "Crimson",
     fabric: "Velvet with dabka",
     price: { stitched: 165000 },
@@ -392,7 +462,8 @@ export const products: Product[] = [
   {
     slug: "peacock-embroidered-lehenga",
     name: "Peacock embroidered lehenga",
-    category: "lehengas",
+    categories: ["occasion", "pakistani", "lux"],
+    subcategory: "Lehengas",
     colour: "Peacock blue",
     fabric: "Raw silk",
     price: { stitched: 118000 },
@@ -405,7 +476,8 @@ export const products: Product[] = [
   {
     slug: "midnight-mirrorwork-lehenga",
     name: "Midnight mirrorwork lehenga",
-    category: "lehengas",
+    categories: ["occasion"],
+    subcategory: "Lehengas",
     colour: "Black",
     fabric: "Georgette with mirrorwork",
     price: { stitched: 58500 },
@@ -419,7 +491,8 @@ export const products: Product[] = [
   {
     slug: "ivory-gold-lehenga",
     name: "Ivory & gold lehenga",
-    category: "lehengas",
+    categories: ["occasion"],
+    subcategory: "Lehengas",
     colour: "Ivory & saffron",
     fabric: "Organza",
     price: { stitched: 64500 },
@@ -428,6 +501,185 @@ export const products: Product[] = [
     description: "An ivory organza skirt with a gold border and a saffron dupatta.",
     stock: 3,
     tags: ["festive"],
+  },
+  // Signature Styles
+  {
+    slug: "white-hakoba-kurta-set",
+    name: "White hakoba kurta set",
+    categories: ["signature-styles"],
+    subcategory: "Hakoba",
+    colour: "White",
+    fabric: "Hakoba cotton",
+    price: { stitched: 12950 },
+    images: [u("1652953186915-420ae843d1a8"), u("1652953186433-70052f26c183"), u("1652953186908-44e07a84fb05")],
+    pieces: pret2,
+    description: "All-over hakoba embroidery on soft white cotton, with a scalloped neckline and sleeves.",
+    stock: 5,
+    tags: ["bestseller"],
+  },
+  {
+    slug: "scarlet-thread-hakoba-suit",
+    name: "Scarlet thread hakoba suit",
+    categories: ["signature-styles"],
+    subcategory: "Hakoba",
+    colour: "White & scarlet",
+    fabric: "Hakoba cotton",
+    price: { stitched: 13950 },
+    images: [u("1742742459138-253e807f2ed2"), texture.bloom],
+    pieces: pret3,
+    description: "Crisp white hakoba lifted with scarlet thread at the neck and cuffs.",
+    stock: 3,
+    tags: [],
+  },
+  {
+    slug: "ivory-khushboo-suit",
+    name: "Ivory khushboo suit",
+    categories: ["signature-styles", "occasion"],
+    subcategory: "Khushboo",
+    colour: "Ivory",
+    fabric: "Khushboo",
+    price: { unstitched: 11950, stitched: 15450 },
+    images: [u("1733311245658-3bfe7f9438e7"), texture.chikan],
+    pieces: ["Embroidered shirt fabric, 3 m", "Dupatta, 2.5 m", "Trouser fabric, 2.5 m"],
+    description: "Soft ivory khushboo with floral embroidery at the cuffs and hem. Quietly dressy.",
+    stock: 4,
+    tags: [],
+  },
+  {
+    slug: "mist-khushboo-dress",
+    name: "Mist khushboo dress",
+    categories: ["signature-styles"],
+    subcategory: "Khushboo",
+    colour: "Mist",
+    fabric: "Khushboo",
+    price: { stitched: 10950 },
+    images: [u("1667665970118-f55705003914"), texture.bloom],
+    pieces: ["Long dress"],
+    description: "A floaty long dress in pale khushboo, with a simple neckline and a soft fall.",
+    stock: 6,
+    tags: [],
+  },
+
+  // Day to Day
+  {
+    slug: "marigold-tiered-rayon-kurta",
+    name: "Marigold tiered rayon kurta",
+    categories: ["day-to-day", "casual"],
+    subcategory: "Rayon",
+    colour: "Marigold",
+    fabric: "Rayon",
+    price: { stitched: 6950 },
+    images: [u("1760287363878-1a09af715b80"), texture.bloom],
+    pieces: ["Kurta"],
+    description: "A bright tiered kurta with a contrast embroidered yoke. Cool and easy on warm days.",
+    stock: 8,
+    tags: [],
+  },
+  {
+    slug: "indigo-paisley-rayon-kurta",
+    name: "Indigo paisley rayon kurta",
+    categories: ["day-to-day"],
+    subcategory: "Rayon",
+    colour: "Indigo",
+    fabric: "Rayon",
+    price: { stitched: 7450 },
+    images: [u("1760287364219-160c234ded00"), texture.fabricStack],
+    pieces: ["Kurta"],
+    description: "A deep indigo paisley print with a gathered waist and three-quarter sleeves.",
+    stock: 7,
+    tags: [],
+  },
+  {
+    slug: "orchid-muslin-kurta-set",
+    name: "Orchid muslin kurta set",
+    categories: ["day-to-day", "casual"],
+    subcategory: "Muslin",
+    colour: "Orchid",
+    fabric: "Muslin",
+    price: { stitched: 9250 },
+    images: [u("1708534246051-7f47b279e94b"), texture.dupatta],
+    pieces: pret2,
+    description: "Light, airy muslin in a rich orchid, with tonal thread work at the neck.",
+    stock: 5,
+    tags: [],
+  },
+  {
+    slug: "rose-muslin-kurta",
+    name: "Rose muslin kurta",
+    categories: ["day-to-day"],
+    subcategory: "Muslin",
+    colour: "Rose",
+    fabric: "Muslin",
+    price: { stitched: 7950 },
+    images: [u("1667665970124-9d2606f4f7f7"), texture.chikan],
+    pieces: ["Kurta"],
+    description: "A soft rose kurta in breathable muslin. Pair it with anything.",
+    stock: 9,
+    tags: [],
+  },
+
+  // Western
+  {
+    slug: "classic-straight-jeans",
+    name: "Classic straight jeans",
+    categories: ["western"],
+    subcategory: "Denim",
+    colour: "Light wash",
+    fabric: "Cotton denim",
+    price: { stitched: 8950 },
+    images: [u("1598554747436-c9293d6a588f"), u("1721637286605-ae9be19d681f")],
+    pieces: ["Jeans"],
+    description: "A clean straight leg in light-wash denim with a high waist.",
+    stock: 8,
+    tags: ["new"],
+    sizes: DENIM_SIZES,
+    care: "Machine wash cold, inside out, with similar colours. Dry in the shade.",
+  },
+  {
+    slug: "everyday-skinny-jeans",
+    name: "Everyday skinny jeans",
+    categories: ["western"],
+    subcategory: "Denim",
+    colour: "Mid wash",
+    fabric: "Stretch denim",
+    price: { stitched: 7950 },
+    images: [u("1475178626620-a4d074967452"), u("1602293589930-45aad59ba3ab")],
+    pieces: ["Jeans"],
+    description: "Mid-wash stretch denim that holds its shape all day.",
+    stock: 10,
+    tags: [],
+    sizes: DENIM_SIZES,
+    care: "Machine wash cold, inside out, with similar colours. Dry in the shade.",
+  },
+  {
+    slug: "washed-denim-jacket",
+    name: "Washed denim jacket",
+    categories: ["western"],
+    subcategory: "Denim",
+    colour: "Blue wash",
+    fabric: "Cotton denim",
+    price: { stitched: 11950 },
+    images: [u("1760624294535-40dfdc84a48f"), u("1631112230741-446762ee05ac")],
+    pieces: ["Jacket"],
+    description: "A classic washed jacket that layers just as well over a kurta as a tee.",
+    stock: 4,
+    tags: ["new"],
+    care: "Machine wash cold, inside out, with similar colours. Dry in the shade.",
+  },
+  {
+    slug: "indigo-denim-co-ord",
+    name: "Indigo denim co-ord",
+    categories: ["western"],
+    subcategory: "Denim",
+    colour: "Indigo",
+    fabric: "Cotton denim",
+    price: { stitched: 14950 },
+    images: [u("1743356914615-66062f1850e6"), u("1645859610425-f0f4177df5f0")],
+    pieces: ["Jacket", "Jeans"],
+    description: "A matching jacket and jeans in deep indigo. Wear them together or apart.",
+    stock: 3,
+    tags: [],
+    care: "Machine wash cold, inside out, with similar colours. Dry in the shade.",
   },
 ];
 
@@ -439,8 +691,14 @@ export function getProduct(slug: string) {
   return products.find((p) => p.slug === slug);
 }
 
-export function productsIn(category: CategorySlug) {
-  return products.filter((p) => p.category === category);
+export function inCategory(p: Product, slug: CategorySlug) {
+  // Ready to Wear is every finished outfit: sold stitched only, and not Western.
+  if (slug === "ready-to-wear") return p.price.unstitched == null && !p.categories.includes("western");
+  return p.categories.includes(slug);
+}
+
+export function productsIn(slug: CategorySlug) {
+  return products.filter((p) => inCategory(p, slug));
 }
 
 export function startingPrice(p: Product) {
@@ -452,7 +710,7 @@ export function stitchingOptions(p: Product): Stitching[] {
 }
 
 export function related(p: Product, count = 4) {
-  return products.filter((x) => x.category === p.category && x.slug !== p.slug).slice(0, count);
+  return products.filter((x) => x.categories[0] === p.categories[0] && x.slug !== p.slug).slice(0, count);
 }
 
 export const formatLKR = (n: number) => `Rs. ${n.toLocaleString("en-LK")}`;

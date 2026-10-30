@@ -46,8 +46,8 @@ export function WardrobeHero({ image }: { image: string }) {
             <Link href="/shop" className="btn btn-primary">
               Shop new arrivals <ArrowIcon className="size-4" />
             </Link>
-            <Link href="/shop/lehengas" className="btn btn-ghost">
-              Browse lehengas
+            <Link href="/shop/occasion" className="btn btn-ghost">
+              Shop occasion wear
             </Link>
           </div>
         </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useLayoutEffect, useMemo, useState } from "react";
-import { categories, startingPrice, stitchingOptions, type CategorySlug, type Product, type Stitching } from "@/lib/catalog";
+import { categories, inCategory, startingPrice, stitchingOptions, type CategorySlug, type Product, type Stitching } from "@/lib/catalog";
 import { FilterIcon } from "./icons";
 import { ProductCard } from "./product-card";
 import { Sheet } from "./sheet";
@@ -26,8 +26,19 @@ const NONE: Filters = { stitching: [], categories: [], bands: [], inStock: false
 
 const toggle = <T,>(list: T[], v: T) => (list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
 
-export function ShopView({ items, showCategoryFilter }: { items: Product[]; showCategoryFilter: boolean }) {
+export function ShopView({
+  items,
+  showCategoryFilter,
+  showStitchingFilter = true,
+  subcategories,
+}: {
+  items: Product[];
+  showCategoryFilter: boolean;
+  showStitchingFilter?: boolean;
+  subcategories?: string[];
+}) {
   const [filters, setFilters] = useState<Filters>(NONE);
+  const [chip, setChip] = useState<string | null>(null);
   const [sort, setSort] = useState<Sort>("featured");
   const [sheetOpen, setSheetOpen] = useState(false);
   const closeSheet = useCallback(() => setSheetOpen(false), []);
@@ -39,9 +50,10 @@ export function ShopView({ items, showCategoryFilter }: { items: Product[]; show
 
   const visible = useMemo(() => {
     const list = items.filter((p) => {
+      if (chip && p.subcategory !== chip) return false;
       const opts = stitchingOptions(p);
       if (filters.stitching.length && !filters.stitching.some((s) => opts.includes(s))) return false;
-      if (filters.categories.length && !filters.categories.includes(p.category)) return false;
+      if (filters.categories.length && !filters.categories.some((c) => inCategory(p, c))) return false;
       if (filters.bands.length && !PRICE_BANDS.filter((b) => filters.bands.includes(b.id)).some((b) => b.test(startingPrice(p)))) return false;
       if (filters.inStock && p.stock === 0) return false;
       return true;
@@ -50,17 +62,19 @@ export function ShopView({ items, showCategoryFilter }: { items: Product[]; show
     if (sort === "price-desc") return [...list].sort((a, b) => startingPrice(b) - startingPrice(a));
     if (sort === "new") return [...list].sort((a, b) => Number(b.tags.includes("new")) - Number(a.tags.includes("new")));
     return list;
-  }, [items, filters, sort]);
+  }, [items, chip, filters, sort]);
 
   const panel = (
     <div className="space-y-8">
-      <FilterGroup title="Stitching">
-        {(["unstitched", "stitched"] as const).map((s) => (
-          <Check key={s} checked={filters.stitching.includes(s)} onChange={() => setFilters((f) => ({ ...f, stitching: toggle(f.stitching, s) }))}>
-            {s === "stitched" ? "Stitched / ready to wear" : "Unstitched fabric"}
-          </Check>
-        ))}
-      </FilterGroup>
+      {showStitchingFilter && (
+        <FilterGroup title="Stitching">
+          {(["unstitched", "stitched"] as const).map((s) => (
+            <Check key={s} checked={filters.stitching.includes(s)} onChange={() => setFilters((f) => ({ ...f, stitching: toggle(f.stitching, s) }))}>
+              {s === "stitched" ? "Stitched / ready to wear" : "Unstitched fabric"}
+            </Check>
+          ))}
+        </FilterGroup>
+      )}
       {showCategoryFilter && (
         <FilterGroup title="Category">
           {categories.map((c) => (
@@ -87,6 +101,24 @@ export function ShopView({ items, showCategoryFilter }: { items: Product[]; show
 
   return (
     <div className="mx-auto max-w-7xl px-4 sm:px-8">
+      {subcategories && (
+        <div className="no-scrollbar -mx-4 flex gap-x-6 overflow-x-auto px-4 pb-4 sm:mx-0 sm:px-0" role="group" aria-label="Filter by type">
+          {[null, ...subcategories].map((name) => {
+            const on = chip === name;
+            return (
+              <button
+                key={name ?? "all"}
+                onClick={() => setChip(name)}
+                aria-pressed={on}
+                className={`min-h-11 shrink-0 border-b-2 text-sm font-semibold transition ${on ? "border-gold text-ink" : "border-transparent text-ink/55 hover:text-ink"}`}
+              >
+                {name ?? "All"}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       {/* Toolbar: sticky under the header on phones */}
       <div className="sticky top-16 z-30 -mx-4 flex items-center justify-between gap-3 border-y border-line bg-mist/95 px-4 py-2.5 backdrop-blur sm:top-20 sm:-mx-8 sm:px-8 lg:static lg:mx-0 lg:border-x-0 lg:border-t-0 lg:bg-transparent lg:px-0 lg:pb-5">
         <button onClick={() => setSheetOpen(true)} className="flex min-h-11 items-center gap-2 rounded-full border border-line bg-ivory px-4 text-sm font-medium lg:hidden">
@@ -119,7 +151,7 @@ export function ShopView({ items, showCategoryFilter }: { items: Product[]; show
             <div className="rounded-[1.5rem] bg-ivory px-6 py-16 text-center">
               <p className="display text-3xl">nothing in this drawer</p>
               <p className="mt-2 text-ink/60">No pieces match these filters. Remove one to see more.</p>
-              <button onClick={() => setFilters(NONE)} className="btn btn-ghost mt-6">Clear filters</button>
+              <button onClick={() => { setFilters(NONE); setChip(null); }} className="btn btn-ghost mt-6">Clear filters</button>
             </div>
           ) : (
             <div className="grid grid-cols-2 gap-x-3 gap-y-10 sm:grid-cols-3 sm:gap-x-6">

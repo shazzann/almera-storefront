@@ -4,11 +4,11 @@ import { WardrobeMark } from "@/components/brand";
 import { ArrowIcon, InstagramIcon, NeedleIcon } from "@/components/icons";
 import { ProductCard } from "@/components/product-card";
 import { WardrobeHero } from "@/components/wardrobe-hero";
-import { STITCHING_FEE, categories, editorial, formatLKR, products, productsIn, texture } from "@/lib/catalog";
+import { STITCHING_FEE, categories, editorial, formatLKR, products, texture } from "@/lib/catalog";
 
 const newIn = products.filter((p) => p.tags.includes("new")).slice(0, 8);
 const loved = products.filter((p) => p.tags.includes("bestseller"));
-const lehengas = productsIn("lehengas").slice(0, 3);
+const lehengas = products.filter((p) => p.subcategory === "Lehengas").slice(0, 3);
 
 const NOTES = [
   { quote: "The lawn was even softer than in the reel, and it reached Kandy in two days. Already ordered my Eid suit.", name: "Shifana", city: "Kandy" },
@@ -27,16 +27,13 @@ export default function Home() {
         <div className="mx-auto max-w-7xl px-4 sm:px-8">
           <SectionHead eyebrow="The wardrobe" title={<>shop by <em>drawer</em></>} id="drawers" />
         </div>
-        <div className="no-scrollbar mt-8 flex snap-x snap-mandatory gap-4 overflow-x-auto scroll-px-4 px-4 sm:mx-auto sm:max-w-7xl sm:grid sm:grid-cols-3 sm:gap-6 sm:overflow-visible sm:px-8">
+        <div className="mx-auto mt-8 flex max-w-3xl flex-wrap justify-center gap-x-3 gap-y-7 px-4 sm:gap-x-5 sm:gap-y-10 sm:px-8 lg:max-w-7xl lg:gap-x-6">
           {categories.map((c) => (
-            <Link key={c.slug} href={`/shop/${c.slug}`} className="group w-[68vw] shrink-0 snap-start sm:w-auto">
+            <Link key={c.slug} href={`/shop/${c.slug}`} className="group w-[calc((100%-1.5rem)/3)] sm:w-[calc((100%-2.5rem)/3)] lg:w-[calc((100%-6rem)/5)]">
               <div className="arch relative aspect-[3/4] overflow-hidden bg-sage-soft">
-                <Image src={c.image} alt="" fill sizes="(min-width: 640px) 31vw, 68vw" className="object-cover transition duration-[1.4s] ease-[var(--ease-out-soft)] group-hover:scale-105" />
+                <Image src={c.image} alt="" fill sizes="(min-width: 1024px) 18vw, 31vw" className="object-cover transition duration-[1.4s] ease-[var(--ease-out-soft)] group-hover:scale-105" />
               </div>
-              <div className="mt-4 flex items-baseline justify-between gap-3">
-                <h3 className="display text-[2rem] sm:text-[2.4rem]">{c.name}</h3>
-                <span className="text-sm text-ink/55">{productsIn(c.slug).length} pieces</span>
-              </div>
+              <h3 className="display mt-3 text-center text-[1.15rem] leading-[1.05] group-hover:text-sage-deep sm:mt-4 sm:text-3xl">{c.name}</h3>
             </Link>
           ))}
         </div>
@@ -64,7 +61,7 @@ export default function Home() {
               label="Unstitched"
               title="the fabric, for your own tailor"
               points={["Embroidered shirt front, printed back & sleeves", "2.5 m dupatta and 2.5 m trouser fabric", "Ships in 1–2 days"]}
-              href="/shop/lawn"
+              href="/shop/lawns"
               cta="Shop unstitched lawn"
             />
             <StitchCard
@@ -72,7 +69,7 @@ export default function Home() {
               label="Stitched"
               title="made to your size by our tailors"
               points={["Standard sizes XS–XL, see the size guide", `Lawn stitching adds ${formatLKR(STITCHING_FEE)}`, "Stitched and pressed in 5–7 days"]}
-              href="/shop/shalwar-kameez"
+              href="/shop/ready-to-wear"
               cta="Shop ready to wear"
               accent
             />
@@ -101,8 +98,8 @@ export default function Home() {
                 </Link>
               ))}
             </div>
-            <Link href="/shop/lehengas" className="btn mt-10 self-start border border-ivory/50 hover:bg-ivory hover:text-ink">
-              Explore lehengas <ArrowIcon className="size-4" />
+            <Link href="/shop/occasion" className="btn mt-10 self-start border border-ivory/50 hover:bg-ivory hover:text-ink">
+              Shop occasion wear <ArrowIcon className="size-4" />
             </Link>
           </div>
         </div>
