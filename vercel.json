@@ -1,0 +1,9 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/sweep-stock-holds",
+      "schedule": "*/5 * * * *"
+    }
+  ]
+}
+

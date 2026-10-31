@@ -1,22 +1,32 @@
 import type { Metadata } from "next";
 import { ShopHeader } from "@/components/shop-header";
 import { ShopView } from "@/components/shop-view";
-import { products } from "@/lib/catalog";
+import { getAllCategories, getAllProducts } from "@/lib/catalog.server";
 
 export const metadata: Metadata = {
   title: "Shop new arrivals",
-  description: "Shop the latest Pakistani lawn suits, ready-to-wear shalwar kameez and lehengas from almera, delivered island-wide in Sri Lanka.",
+  description:
+    "Shop the latest Pakistani lawn suits, ready-to-wear shalwar kameez and lehengas from almera, delivered island-wide in Sri Lanka.",
   alternates: { canonical: "/shop" },
 };
 
-export default function ShopPage() {
+export default async function ShopPage() {
+  const [items, categoryList] = await Promise.all([
+    getAllProducts(),
+    getAllCategories(),
+  ]);
   return (
     <>
       <ShopHeader
-        title={<>the whole <em>wardrobe</em></>}
+        title={
+          <>
+            the whole <em>wardrobe</em>
+          </>
+        }
         blurb="Every lawn suit, shalwar kameez and lehenga we have in stock. Most pieces come in small quantities, so they sell quickly."
+        categoryList={categoryList}
       />
-      <ShopView items={products} showCategoryFilter />
+      <ShopView items={items} showCategoryFilter categoryList={categoryList} />
       <div className="h-20" />
     </>
   );
