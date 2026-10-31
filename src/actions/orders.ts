@@ -24,6 +24,11 @@ import {
 } from "@/lib/coupons.server";
 import { getSupabaseAdmin } from "@/lib/supabase/admin.server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import {
+  buildCheckoutDescription,
+  getPaymentsLkClient,
+  getSiteOrigin,
+} from "@/lib/payments-lk.server";
 
 const SL_PHONE_REGEX = /^(?:\+94|0)?7\d{8}$/;
 
@@ -55,13 +60,25 @@ const placeOrderSchema = z.object({
   district: z.enum(DISTRICTS_TUPLE, { message: "Choose your district." }),
   postal_code: z.string().trim().max(20).optional().nullable(),
   note: z.string().trim().max(500).optional().nullable(),
-  payment_method: z.enum(["cod", "bank"]).default("cod"),
+  payment_method: z.enum(["cod", "bank", "card"]).default("cod"),
   coupon_code: z.string().trim().max(40).optional().nullable(),
-  idempotency_key: z.string().uuid().optional(),
+  idempotency_key: z.string().optional(),
   items: z.array(orderItemInputSchema).min(1).max(50),
 });
 
 export type PlaceOrderInput = z.infer<typeof placeOrderSchema>;
+
+export type PlaceOrderResult = {
+  order_number: string;
+  subtotal: number;
+  delivery_fee: number;
+  discount_amount: number;
+  coupon_code: string | null;
+  total: number;
+  status: string;
+  payment_method: "cod" | "bank" | "card";
+  checkout_url?: string;
+};
 
 export type CouponResult = {
   code: string;
@@ -308,7 +325,7 @@ export async function placeOrderAction(rawInput: PlaceOrderInput) {
         coupon_code: existing.coupon_code as string | null,
         total: Number(existing.total),
         status: existing.status as string,
-        payment_method: existing.payment_method as "cod" | "bank",
+        payment_method: existing.payment_method as "cod" | "bank" | "card",
       };
     }
   }
@@ -346,15 +363,21 @@ export async function placeOrderAction(rawInput: PlaceOrderInput) {
   }
 
   const total = Math.max(0, subtotal + deliveryFee - discountAmount);
-  const initialStatus =
-    data.payment_method === "bank" || requiresCodDeposit(data.payment_method, total)
+  const isCard = data.payment_method === "card";
+  const holdExpiry = isCard ? new Date(Date.now() + 15 * 60 * 1000) : null;
+  const initialStatus = isCard
+    ? "payment_pending"
+    : data.payment_method === "bank" || requiresCodDeposit(data.payment_method, total)
       ? "awaiting_bank_slip"
       : "pending";
   const dbStockTargets = verifiedLines.map((l) => l.stockTarget);
 
+  // ATOMICALLY DEDUCT / HOLD STOCK UPFRONT
   await deductStock(dbStockTargets);
 
   let createdOrder: any = null;
+  let checkoutUrl: string | undefined;
+
   try {
     const { data: orderRow, error: orderErr } = await supabase
       .from("orders")
@@ -375,6 +398,8 @@ export async function placeOrderAction(rawInput: PlaceOrderInput) {
         total,
         payment_method: data.payment_method,
         status: initialStatus,
+        stock_reserved: isCard,
+        hold_expires_at: holdExpiry ? holdExpiry.toISOString() : null,
         ...(data.idempotency_key ? { idempotency_key: data.idempotency_key } : {}),
       })
       .select("id,order_number,total,status,payment_method")
@@ -396,7 +421,7 @@ export async function placeOrderAction(rawInput: PlaceOrderInput) {
           coupon_code: existing!.coupon_code as string | null,
           total: Number(existing!.total),
           status: existing!.status as string,
-          payment_method: existing!.payment_method as "cod" | "bank",
+          payment_method: existing!.payment_method as "cod" | "bank" | "card",
         };
       }
       throw orderErr;
@@ -428,12 +453,52 @@ export async function placeOrderAction(rawInput: PlaceOrderInput) {
         throw new Error("This promo code has reached its usage limit.");
       }
     }
-  } catch (err) {
-    if (createdOrder?.id) {
-      await supabase.from("order_items").delete().eq("order_id", createdOrder.id);
-      await supabase.from("orders").delete().eq("id", createdOrder.id);
+
+    // Step 4.2: Create Payments.lk session if paying by card
+    if (isCard) {
+      const lk = getPaymentsLkClient();
+      const amountCents = Math.round(total * 100);
+      const origin = getSiteOrigin();
+
+      const checkout = await lk.checkouts.create(
+        {
+          amountCents,
+          description: buildCheckoutDescription(
+            verifiedLines.map((l) => ({ product_name: l.product_name, quantity: l.quantity })),
+          ),
+          reference: String(createdOrder.order_number || createdOrder.id),
+          successUrl: `${origin}/order-confirmed?order=${createdOrder.order_number}&method=card`,
+          cancelUrl: `${origin}/api/cancel-card-checkout?order_id=${createdOrder.id}`,
+        },
+        { idempotencyKey: `order-${createdOrder.id}` },
+      );
+
+      checkoutUrl = checkout.url;
     }
+  } catch (err) {
     await restoreStock(dbStockTargets);
+    if (createdOrder?.id) {
+      if (isCard) {
+        await supabase
+          .from("orders")
+          .update({
+            status: "cancelled",
+            stock_reserved: false,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", createdOrder.id);
+      } else {
+        await supabase.from("order_items").delete().eq("order_id", createdOrder.id);
+        await supabase.from("orders").delete().eq("id", createdOrder.id);
+      }
+    }
+    if (normalizedCoupon) {
+      try {
+        await supabase.rpc("decrement_coupon_usage", { p_code: normalizedCoupon });
+      } catch {
+        // non-blocking
+      }
+    }
     throw err instanceof Error ? err : new Error("Could not place your order. Please try again.");
   }
 
@@ -442,7 +507,9 @@ export async function placeOrderAction(rawInput: PlaceOrderInput) {
     verifiedLines.flatMap((l) => l.categories),
   );
 
-  if (cleanEmail) {
+  // Send confirmation email immediately only for non-card orders.
+  // Card orders get their confirmation email sent via the webhook upon payment.succeeded!
+  if (!isCard && cleanEmail) {
     import("@/lib/email/notifications.server")
       .then(({ notifyOrderPlaced }) => notifyOrderPlaced(createdOrder.id))
       .catch((e) => console.error("[order] Email notification failed:", e));
@@ -456,7 +523,83 @@ export async function placeOrderAction(rawInput: PlaceOrderInput) {
     coupon_code: normalizedCoupon,
     total: Number(createdOrder.total),
     status: createdOrder.status as string,
-    payment_method: createdOrder.payment_method as "cod" | "bank",
+    payment_method: createdOrder.payment_method as "cod" | "bank" | "card",
+    checkout_url: checkoutUrl,
+  };
+}
+
+export async function initiateCardCheckoutAction(rawInput: PlaceOrderInput): Promise<PlaceOrderResult> {
+  return placeOrderAction({ ...rawInput, payment_method: "card" });
+}
+
+export const initiateCardCheckout = initiateCardCheckoutAction;
+
+export type OrderConfirmationResult = {
+  number: string;
+  name: string;
+  phone: string;
+  address: string;
+  district: string;
+  method: "standard";
+  payment: "cod" | "bank" | "card";
+  subtotal: number;
+  delivery: number;
+  couponCode: string | null;
+  discountAmount: number;
+  total: number;
+  status: string;
+  lines: Array<{
+    key: string;
+    slug: string;
+    name: string;
+    image: string;
+    unitPrice: number;
+    stitching: "unstitched" | "stitched";
+    size?: string;
+    qty: number;
+  }>;
+};
+
+export async function getOrderConfirmationAction(
+  orderNumber: string,
+): Promise<OrderConfirmationResult | null> {
+  const rawNum = (orderNumber || "").trim().toUpperCase().replace(/[^A-Z0-9-]/g, "");
+  if (!rawNum) return null;
+  const normalizedNum = rawNum.startsWith("ALM-") ? rawNum : `ALM-${rawNum.replace(/^ALM/, "")}`;
+
+  const supabase = getSupabaseAdmin();
+  const { data: order, error } = await supabase
+    .from("orders")
+    .select("*, order_items(*)")
+    .eq("order_number", normalizedNum)
+    .maybeSingle();
+
+  if (error || !order) return null;
+
+  return {
+    number: order.order_number,
+    name: order.customer_name,
+    phone: order.phone,
+    address: `${order.address}, ${order.city}`,
+    district: order.district,
+    method: "standard",
+    payment: order.payment_method as "cod" | "bank" | "card",
+    subtotal: Number(order.subtotal ?? 0),
+    delivery: Number(order.delivery_fee ?? 0),
+    couponCode: order.coupon_code ?? null,
+    discountAmount: Number(order.discount_amount ?? 0),
+    total: Number(order.total ?? 0),
+    status: order.status,
+    lines: (order.order_items ?? []).map((item: any) => ({
+      key: `${item.product_slug}-${item.stitching}-${item.size ?? "none"}`,
+      slug: item.product_slug,
+      name: item.product_name,
+      image: item.image_url || "",
+      unitPrice: Number(item.unit_price ?? 0),
+      stitching: item.stitching,
+      size: item.size || undefined,
+      qty: Number(item.quantity ?? 1),
+    })),
   };
 }
 

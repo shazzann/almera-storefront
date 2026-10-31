@@ -260,7 +260,8 @@ export async function updateOrderStatusAction(
       | "confirmed"
       | "shipped"
       | "delivered"
-      | "cancelled";
+      | "cancelled"
+      | "processing_failed";
   },
 ) {
   const admin = await assertAdmin(accessToken);
@@ -275,7 +276,7 @@ export async function updateOrderStatusAction(
   const prevStatus: string = order.status;
   if (prevStatus === params.nextStatus) return order;
 
-  const activeStatuses = ["pending", "awaiting_bank_slip", "confirmed", "shipped"];
+  const activeStatuses = ["pending", "awaiting_bank_slip", "confirmed", "shipped", "payment_pending"];
   if (params.nextStatus === "cancelled" && activeStatuses.includes(prevStatus)) {
     const stockItems: StockItem[] = (order.order_items ?? [])
       .map((item: any) =>
@@ -309,7 +310,11 @@ export async function updateOrderStatusAction(
 
   const { data: updated, error: updateErr } = await supabase
     .from("orders")
-    .update({ status: params.nextStatus, updated_at: new Date().toISOString() })
+    .update({
+      status: params.nextStatus,
+      stock_reserved: params.nextStatus === "cancelled" ? false : order.stock_reserved,
+      updated_at: new Date().toISOString(),
+    })
     .eq("id", params.orderId)
     .select("*")
     .single();

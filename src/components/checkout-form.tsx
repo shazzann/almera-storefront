@@ -22,7 +22,7 @@ import type { PublicCouponSummary } from "@/lib/coupons.server";
 import { BANK_DETAILS } from "@/lib/whatsapp";
 import { WardrobeMark } from "./brand";
 
-type Payment = "cod" | "bank";
+type Payment = "cod" | "bank" | "card";
 type Form = {
   name: string;
   phone: string;
@@ -80,8 +80,20 @@ export function CheckoutForm() {
   const [errors, setErrors] = useState<Partial<Record<keyof Form, string>>>({});
   const [serverError, setServerError] = useState<string | null>(null);
   const [method, setMethod] = useState<DeliveryMethod>("standard");
-  const [payment, setPayment] = useState<Payment>("cod");
+  const [payment, setPayment] = useState<Payment>("card");
   const [placing, setPlacing] = useState(false);
+  const [paymentCancelledNotice, setPaymentCancelledNotice] = useState(false);
+
+  // Detect ?payment_cancelled=true from cancelUrl redirect
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("payment_cancelled") === "true") {
+        setPaymentCancelledNotice(true);
+        window.history.replaceState({}, "", window.location.pathname);
+      }
+    }
+  }, []);
 
   // Coupon state
   const [couponInput, setCouponInput] = useState("");
@@ -268,6 +280,14 @@ export function CheckoutForm() {
       try {
         sessionStorage.setItem("almera.lastOrder", JSON.stringify(order));
       } catch { }
+
+      // Section 5.1: Card payments keep the cart intact during hosted checkout redirect
+      if (payment === "card" && result.checkout_url) {
+        window.location.href = result.checkout_url;
+        return;
+      }
+
+      // COD & Bank Transfer: clear cart immediately upon order placement
       cart.clear();
       setForm(EMPTY_FORM);
       router.push("/order-confirmed");
@@ -455,6 +475,33 @@ export function CheckoutForm() {
 
       <form onSubmit={submit} noValidate className="space-y-10 px-4 py-8 sm:px-6 lg:px-0 lg:py-0">
         <h1 className="display text-5xl">checkout</h1>
+
+        {paymentCancelledNotice && (
+          <div
+            role="status"
+            className="flex items-start justify-between gap-3.5 rounded-2xl border border-gold/60 bg-ivory p-4 text-sm text-ink shadow-sm"
+          >
+            <div className="flex items-start gap-3">
+              <span className="mt-0.5 grid size-5 shrink-0 place-items-center rounded-full bg-gold/20 text-xs font-bold text-gold-deep">
+                !
+              </span>
+              <div>
+                <p className="font-semibold text-charcoal">Payment was cancelled</p>
+                <p className="mt-0.5 text-xs leading-relaxed text-ink/75">
+                  Your held items have been restored and your bag remains intact. You can retry paying with card or select Cash on Delivery.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setPaymentCancelledNotice(false)}
+              className="text-xs font-semibold text-ink/50 hover:text-ink"
+              aria-label="Dismiss payment cancelled notification"
+            >
+              ✕
+            </button>
+          </div>
+        )}
 
         {serverError && (
           <div
@@ -662,6 +709,13 @@ export function CheckoutForm() {
           <div className="space-y-2.5">
             <Choice
               name="payment"
+              checked={payment === "card"}
+              onChange={() => setPayment("card")}
+              title="Debit or Credit Card"
+              sub="Pay securely online with Visa, Mastercard or local cards via Payments.lk. Your items are held for 15 minutes while you enter your details."
+            />
+            <Choice
+              name="payment"
               checked={payment === "cod"}
               onChange={() => setPayment("cod")}
               title="Cash on delivery"
@@ -679,6 +733,14 @@ export function CheckoutForm() {
               sub="Transfer to our bank account and share your slip on WhatsApp. Your order is dispatched once the payment slip is received."
             />
           </div>
+          {payment === "card" && (
+            <div className="mt-3 rounded-2xl border border-sage-deep/30 bg-sage-soft/40 p-4 text-xs text-ink/75">
+              <p className="font-semibold text-charcoal">Upfront 15-Minute Inventory Hold</p>
+              <p className="mt-1 leading-relaxed">
+                When you click to pay, your items are immediately reserved in our inventory so no one else can purchase them while you enter your card details and OTP on Payments.lk.
+              </p>
+            </div>
+          )}
           {requiresCodDeposit(payment, finalTotal) && (
             <div className="mt-3 rounded-2xl border border-gold/45 bg-ivory p-4 text-sm">
               <p className="eyebrow text-gold-deep">
@@ -737,7 +799,13 @@ export function CheckoutForm() {
         </div>
 
         <button type="submit" disabled={placing} className="btn btn-primary w-full">
-          {placing ? "Placing your order…" : `Place order · ${formatLKR(finalTotal)}`}
+          {placing
+            ? payment === "card"
+              ? "Holding items & opening card payment…"
+              : "Placing your order…"
+            : payment === "card"
+              ? `Pay with card · ${formatLKR(finalTotal)}`
+              : `Place order · ${formatLKR(finalTotal)}`}
         </button>
       </form>
 

@@ -218,3 +218,73 @@ export async function notifyOrderStatus(orderId: string, status: string): Promis
     `,
   });
 }
+
+export async function notifyAdminRefundNeeded(
+  orderId: string,
+  paymentId: string,
+  reason: string,
+): Promise<void> {
+  const supabase = getSupabaseAdmin();
+  const { data: order } = await supabase
+    .from("orders")
+    .select("*")
+    .eq("id", orderId)
+    .maybeSingle();
+
+  // Audit log entry
+  try {
+    await supabase.from("audit_log").insert({
+      action: "refund_needed",
+      entity_type: "order",
+      entity_id: orderId,
+      details: {
+        order_number: order?.order_number ?? orderId,
+        payment_id: paymentId,
+        reason,
+        total: order?.total,
+        customer_name: order?.customer_name,
+        customer_phone: order?.phone,
+        customer_email: order?.email,
+      },
+    });
+  } catch (err) {
+    console.error("[notifyAdminRefundNeeded] Failed to write audit log:", err);
+  }
+
+  const transporter = createTransporter();
+  if (!transporter) return;
+
+  const adminEmail = process.env.ADMIN_EMAIL || "almeralk26@gmail.com";
+  const fromName = process.env.MAIL_FROM_NAME || "almera";
+  const fromEmail = process.env.MAIL_FROM || "orders@almera.lk";
+
+  try {
+    await transporter.sendMail({
+      from: `"${fromName}" <${fromEmail}>`,
+      to: adminEmail,
+      subject: `[ACTION REQUIRED] Manual Refund Needed — ${order?.order_number ?? orderId} · payments.lk`,
+      html: `
+        <div style="font-family:Georgia,serif;max-width:560px;margin:0 auto;padding:28px;color:#1f231e;background:#fbf8f2;">
+          <p style="text-transform:uppercase;letter-spacing:0.15em;font-size:11px;color:#a5432f;font-weight:bold;">Refund Required</p>
+          <h1 style="font-weight:400;font-size:24px;margin:8px 0 16px;">Customer Paid After Hold Expired</h1>
+          <p style="font-size:15px;line-height:1.6;color:#4a4e48;">
+            An order was completed on Payments.lk, but the customer took longer than the 15-minute reservation window. The inventory hold expired and one or more items sold out before payment completed.
+          </p>
+          <div style="margin-top:16px;padding:16px;background:#f4efe6;border-radius:10px;font-size:14px;line-height:1.6;">
+            <p style="margin:4px 0;"><strong>Order:</strong> ${escapeHtml(order?.order_number ?? orderId)}</p>
+            <p style="margin:4px 0;"><strong>Payment ID:</strong> <span style="font-family:monospace;">${escapeHtml(paymentId)}</span></p>
+            <p style="margin:4px 0;"><strong>Total Paid:</strong> ${formatLKR(Number(order?.total ?? 0))}</p>
+            <p style="margin:4px 0;"><strong>Customer:</strong> ${escapeHtml(order?.customer_name ?? "")} (${escapeHtml(order?.phone ?? "")})</p>
+            <p style="margin:4px 0;"><strong>Email:</strong> ${escapeHtml(order?.email ?? "N/A")}</p>
+            <p style="margin:4px 0;"><strong>Reason:</strong> ${escapeHtml(reason)}</p>
+          </div>
+          <p style="margin-top:16px;font-size:14px;color:#4a4e48;">
+            Please open your <strong>Payments.lk dashboard</strong> and issue a refund for payment <code>${escapeHtml(paymentId)}</code>, or contact the customer to arrange a replacement item.
+          </p>
+        </div>
+      `,
+    });
+  } catch (mailErr) {
+    console.error("[notifyAdminRefundNeeded] Failed to send email to admin:", mailErr);
+  }
+}

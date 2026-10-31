@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
+import { getOrderConfirmationAction } from "@/actions/orders";
+import { cart } from "@/lib/cart";
 import { DELIVERY, formatLKR } from "@/lib/catalog";
 import {
   COD_DEPOSIT_BANK,
@@ -24,8 +26,53 @@ const read = () => {
 
 export function OrderConfirmation() {
   const raw = useSyncExternalStore(() => () => {}, read, () => undefined);
+  const [fetchedOrder, setFetchedOrder] = useState<PlacedOrder | null>(null);
+
+  // Section 5.2: Clear cart only on the /order-confirmed page after successful checkout
+  useEffect(() => {
+    cart.clear();
+  }, []);
+
+  // If order is not in sessionStorage (e.g. redirected from Payments.lk card flow), fetch by ?order=
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const orderParam = params.get("order");
+
+    if (!raw && orderParam) {
+      let active = true;
+      getOrderConfirmationAction(orderParam)
+        .then((data) => {
+          if (!active || !data) return;
+          const mapped: PlacedOrder = {
+            number: data.number,
+            name: data.name,
+            phone: data.phone,
+            address: data.address,
+            district: data.district,
+            method: data.method,
+            payment: data.payment,
+            lines: data.lines as unknown as PlacedOrder["lines"],
+            subtotal: data.subtotal,
+            delivery: data.delivery,
+            couponCode: data.couponCode,
+            discountAmount: data.discountAmount,
+            total: data.total,
+          };
+          setFetchedOrder(mapped);
+          try {
+            sessionStorage.setItem("almera.lastOrder", JSON.stringify(mapped));
+          } catch {}
+        })
+        .catch(() => {});
+      return () => {
+        active = false;
+      };
+    }
+  }, [raw]);
+
   if (raw === undefined) return <div className="min-h-[60vh]" />;
-  const order: PlacedOrder | null = raw ? JSON.parse(raw) : null;
+  const order: PlacedOrder | null = fetchedOrder || (raw ? JSON.parse(raw) : null);
 
   if (!order) {
     return (
@@ -63,20 +110,25 @@ export function OrderConfirmation() {
       title: "We’ll confirm with you",
       body: `Expect a call or WhatsApp on ${order.phone} within one working day.`,
     },
-    order.payment === "bank"
+    order.payment === "card"
       ? {
-          title: "Send your payment slip",
-          body: "Transfer to our bank account below and share your slip on WhatsApp so we can dispatch your parcel.",
+          title: "Payment confirmed",
+          body: "Your card payment was processed securely via Payments.lk. We’re preparing your pieces for dispatch.",
         }
-      : needsCodDeposit
+      : order.payment === "bank"
         ? {
-            title: `Send your ${formatLKR(COD_MIN_DEPOSIT)} advance deposit slip`,
-            body: `Transfer a minimum ${formatLKR(COD_MIN_DEPOSIT)} commitment deposit to our bank account below and share the slip on WhatsApp. You’ll pay the remaining ${formatLKR(codRemainingBalance)} in cash to the courier on delivery.`,
+            title: "Send your payment slip",
+            body: "Transfer to our bank account below and share your slip on WhatsApp so we can dispatch your parcel.",
           }
-        : {
-            title: "Keep cash ready",
-            body: `Pay ${formatLKR(order.total)} to the courier when your parcel arrives.`,
-          },
+        : needsCodDeposit
+          ? {
+              title: `Send your ${formatLKR(COD_MIN_DEPOSIT)} advance deposit slip`,
+              body: `Transfer a minimum ${formatLKR(COD_MIN_DEPOSIT)} commitment deposit to our bank account below and share the slip on WhatsApp. You’ll pay the remaining ${formatLKR(codRemainingBalance)} in cash to the courier on delivery.`,
+            }
+          : {
+              title: "Keep cash ready",
+              body: `Pay ${formatLKR(order.total)} to the courier when your parcel arrives.`,
+            },
     {
       title: "Your parcel is on its way",
       body: `${DELIVERY.standard.label} to ${order.district}: ${DELIVERY.standard.eta.toLowerCase()}.`,
@@ -95,6 +147,15 @@ export function OrderConfirmation() {
           Your order has been placed. We’re setting it aside in the wardrobe for you now.
         </p>
       </div>
+
+      {order.payment === "card" && (
+        <div className="mt-10 rounded-2xl border border-sage-deep/40 bg-sage-soft/30 p-6">
+          <p className="eyebrow text-sage-deep">Payment Confirmed</p>
+          <p className="mt-2 text-sm leading-relaxed text-ink/75">
+            Thank you! Your payment was processed securely via Payments.lk. Your items are reserved in our inventory and our team is preparing your package for island-wide delivery.
+          </p>
+        </div>
+      )}
 
       {order.payment === "bank" && (
         <div className="mt-10 rounded-2xl border border-gold/40 bg-ivory p-6">

@@ -243,6 +243,15 @@ export function TrackOrderView() {
             </div>
           )}
 
+          {order.payment_method === "card" && order.status === "payment_pending" && (
+            <div className="rounded-2xl border border-gold/50 bg-ivory p-6">
+              <p className="eyebrow text-gold-deep">Online Card Payment Pending</p>
+              <p className="mt-2 text-sm leading-relaxed text-ink/75">
+                We are awaiting payment confirmation from Payments.lk. If you just completed your payment, please allow a moment for the status to refresh automatically.
+              </p>
+            </div>
+          )}
+
           {order.payment_method === "bank" && order.status === "awaiting_bank_slip" && (
             <div className="rounded-2xl border border-gold/40 bg-ivory p-6">
               <p className="eyebrow text-gold-deep">Bank Transfer Details</p>
