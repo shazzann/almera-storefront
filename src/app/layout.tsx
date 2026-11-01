@@ -75,8 +75,10 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
         <main id="main" className="flex-1">
           {children}
         </main>
-        <StoreOnly>
+        <StoreOnly hideOnAccount>
           <Footer categoryList={categoryList} />
+        </StoreOnly>
+        <StoreOnly>
           <CartDrawer />
         </StoreOnly>
       </body>

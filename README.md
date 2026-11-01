@@ -44,3 +44,11 @@ Open http://localhost:3000. For the client meeting, open it on a phone or use th
 The owner manages the shop from `/admin`, built for phones first: orders, products, stock, promos and categories. It can be added to the home screen like an app.
 
 To try it without signing in or touching real data, open `/admin-preview` in development. It runs on sample data, and returns "not found" in production.
+
+## Customer accounts
+
+The dashboard lives in `src/components/account`, and `/account-preview` shows it on sample data (off in production unless built with `ADMIN_PREVIEW=1`).
+
+Password rules are in `src/lib/password-policy.ts`. Set the same minimum in Supabase under Authentication, because customers' browsers can reach Supabase directly with the public key.
+
+Reset links need `CRON_SECRET` or `AUTH_COOKIE_SECRET` set on the server, and the sign-in limits and guest-order linking need the real `SUPABASE_SERVICE_ROLE_KEY`.
