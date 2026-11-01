@@ -4,7 +4,7 @@ import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { ChevronIcon, CloseIcon, PlusIcon } from "@/components/icons";
 import { useAdmin } from "./admin-app";
-import { AddToHomeIcon, CameraIcon, ClockIcon, DownloadIcon, LayersIcon, SignOutIcon, StoreIcon } from "./admin-icons";
+import { AddToHomeIcon, CameraIcon, ClockIcon, DownloadIcon, LayersIcon, LockIcon, SignOutIcon, StoreIcon } from "./admin-icons";
 import { describeActivity, downloadOrdersCsv, num, slugify, timeAgo, type CategoryRow } from "./lib";
 import { AdminSheet, Card, EmptyState, Field, StickyBar, SwitchRow, TopBar } from "./ui";
 
@@ -99,6 +99,13 @@ export function MoreScreen() {
           <a href="/" target="_blank" rel="noreferrer" className={rowClass}>
             <span className={iconClass}><StoreIcon className="size-5" /></span>
             <span className="flex-1 font-medium">View store</span>
+          </a>
+          <a href="/account/forgot-password" className={rowClass}>
+            <span className={iconClass}><LockIcon className="size-5" /></span>
+            <span className="min-w-0 flex-1">
+              <span className="block font-medium">Change password</span>
+              <span className="block text-[0.82rem] text-ink/60">We&apos;ll email you a secure link</span>
+            </span>
           </a>
           <button onClick={() => source.signOut().then(() => window.location.assign("/"))} className={rowClass}>
             <span className={iconClass}><SignOutIcon className="size-5" /></span>

@@ -2,7 +2,6 @@ import "server-only";
 import type { User } from "@supabase/supabase-js";
 import { redirect } from "next/navigation";
 import type { AccountProfile } from "@/components/account/types";
-import { isAdminEmail } from "@/lib/admin-config";
 import { getSupabaseAdmin } from "@/lib/supabase/admin.server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -41,6 +40,5 @@ export function accountProfile(user: User, row?: { full_name?: string | null; ph
     hasPassword: providers.includes("email"),
     viaGoogle: providers.includes("google"),
     lastSignIn: user.last_sign_in_at ?? null,
-    isAdmin: isAdminEmail(user.email),
   };
 }

@@ -62,6 +62,9 @@ export const StoreIcon = (p: P) => (
 export const SignOutIcon = (p: P) => (
   <svg {...base} {...p}><path d="M10 5H5v14h5" /><path d="M9.500 12H20M16 8l4 4-4 4" /></svg>
 );
+export const LockIcon = (p: P) => (
+  <svg {...base} {...p}><rect x="5.500" y="10.500" width="13" height="9.500" rx="2" /><path d="M8.500 10.500V7.500a3.500 3.500 0 0 1 7 0v3" /></svg>
+);
 export const TrashIcon = (p: P) => (
   <svg {...base} {...p}><path d="M4.500 7h15M9.500 7V4.500h5V7M6.500 7l1 13h9l1-13" /></svg>
 );

@@ -44,7 +44,6 @@ export type AccountProfile = {
   hasPassword: boolean;
   viaGoogle: boolean;
   lastSignIn: string | null;
-  isAdmin: boolean;
 };
 
 export type AddressInput = {

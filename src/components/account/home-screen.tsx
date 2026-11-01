@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { OrdersIcon, StoreIcon } from "@/components/admin/admin-icons";
+import { OrdersIcon } from "@/components/admin/admin-icons";
 import { ChevronIcon, WhatsAppIcon } from "@/components/icons";
 import { PinIcon, UserIcon } from "./account-icons";
 import { useAccount } from "./context";
@@ -81,13 +81,6 @@ export function HomeScreen({
             </span>
             <ChevronIcon className="size-4 opacity-40" />
           </a>
-          {profile.isAdmin && (
-            <Link href="/admin" className="flex min-h-16 items-center gap-3.5 px-4">
-              <StoreIcon className="size-6 text-gold-deep" />
-              <span className="min-w-0 flex-1 font-medium">Open admin console</span>
-              <ChevronIcon className="size-4 opacity-40" />
-            </Link>
-          )}
         </div>
       </div>
     </>

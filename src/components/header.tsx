@@ -234,9 +234,9 @@ export function Header({
               <SearchIcon />
             </button>
             <Link
-              href={currentUser ? "/account" : "/account/login"}
+              href={!currentUser ? "/account/login" : isAdminEmail(currentUser.email) ? "/admin" : "/account"}
               className="relative grid size-11 place-items-center rounded-full hover:bg-ivory"
-              aria-label={currentUser ? "My account" : "Sign in"}
+              aria-label={!currentUser ? "Sign in" : isAdminEmail(currentUser.email) ? "Admin console" : "My account"}
               title={
                 currentUser
                   ? currentUser.email
@@ -270,39 +270,26 @@ export function Header({
         <nav className="px-5 py-2" aria-label="Mobile">
           <div className="mb-4 pt-1">
             {currentUser ? (
-              <>
-                <Link
-                  href="/account"
-                  onNavigate={closeMenu}
-                  className="flex items-center justify-between rounded-2xl bg-sage-soft/60 p-3 text-charcoal transition-colors hover:bg-sage-soft"
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <span className="grid size-8 shrink-0 place-items-center rounded-full bg-olive text-ivory text-xs font-serif font-bold">
-                      {currentUser.email?.charAt(0).toUpperCase() || "A"}
+              <Link
+                href={isAdminEmail(currentUser.email) ? "/admin" : "/account"}
+                onNavigate={closeMenu}
+                className="flex items-center justify-between rounded-2xl bg-sage-soft/60 p-3 text-charcoal transition-colors hover:bg-sage-soft"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <span className="grid size-8 shrink-0 place-items-center rounded-full bg-olive text-ivory text-xs font-serif font-bold">
+                    {currentUser.email?.charAt(0).toUpperCase() || "A"}
+                  </span>
+                  <div className="truncate">
+                    <span className="block font-medium text-xs tracking-wide">
+                      {isAdminEmail(currentUser.email) ? "Admin Console" : "My Account"}
                     </span>
-                    <div className="truncate">
-                      <span className="block font-medium text-xs tracking-wide">My Account</span>
-                      <span className="block truncate font-mono text-[11px] text-ink/65">
-                        {currentUser.email}
-                      </span>
-                    </div>
+                    <span className="block truncate font-mono text-[11px] text-ink/65">
+                      {currentUser.email}
+                    </span>
                   </div>
-                  <ArrowIcon className="size-4 shrink-0 opacity-40" />
-                </Link>
-                {isAdminEmail(currentUser.email) && (
-                  <Link
-                    href="/admin"
-                    onNavigate={closeMenu}
-                    className="mt-2 flex items-center justify-between rounded-xl border border-gold/50 bg-gold/15 px-3.5 py-2 text-xs font-semibold tracking-wider text-gold-deep uppercase transition-colors hover:bg-gold/25"
-                  >
-                    <span className="flex items-center gap-2">
-                      <span className="size-2 rounded-full bg-gold-deep" />
-                      Admin Console
-                    </span>
-                    <ArrowIcon className="size-3.5 opacity-60" />
-                  </Link>
-                )}
-              </>
+                </div>
+                <ArrowIcon className="size-4 shrink-0 opacity-40" />
+              </Link>
             ) : (
               <Link
                 href="/account/login"

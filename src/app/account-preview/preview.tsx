@@ -73,7 +73,6 @@ const PROFILE: AccountProfile = {
   hasPassword: true,
   viaGoogle: false,
   lastSignIn: new Date().toISOString(),
-  isAdmin: false,
 };
 
 const pause = () => new Promise((r) => setTimeout(r, 300));

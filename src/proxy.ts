@@ -30,6 +30,13 @@ export async function proxy(request: NextRequest) {
 
   const path = request.nextUrl.pathname;
 
+  // Carry over any refreshed session cookies, or the redirect would lose them.
+  const redirectTo = (target: string) => {
+    const response = NextResponse.redirect(new URL(target, request.url));
+    supabaseResponse.cookies.getAll().forEach((cookie) => response.cookies.set(cookie));
+    return response;
+  };
+
   if (path === "/admin" || path.startsWith("/admin/")) {
     const {
       data: { user },
@@ -65,14 +72,19 @@ export async function proxy(request: NextRequest) {
         loginUrl.searchParams.set("next", `${path}${request.nextUrl.search}`);
         return NextResponse.redirect(loginUrl);
       }
+
+      // The admin has no customer dashboard, only the admin console.
+      if (isAdminEmail(user.email)) {
+        return redirectTo("/admin");
+      }
     } else if (path === "/account/login" || path === "/account/signup") {
-      // If user is already authenticated and visits login/signup, redirect to account dashboard
+      // If user is already authenticated and visits login/signup, redirect to their dashboard
       const {
         data: { user },
       } = await supabase.auth.getUser();
 
       if (user) {
-        return NextResponse.redirect(new URL("/account", request.url));
+        return redirectTo(isAdminEmail(user.email) ? "/admin" : "/account");
       }
     }
   }
