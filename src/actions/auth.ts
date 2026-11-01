@@ -1,344 +1,284 @@
 "use server";
 
+import { createClient } from "@supabase/supabase-js";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { ADDRESS_COLUMNS, linkGuestOrders } from "@/lib/account.server";
 import { getCurrentUser, requireUser } from "@/lib/auth.server";
+import { DISTRICTS } from "@/lib/catalog";
+import { isBreachedPassword } from "@/lib/password-breach.server";
+import { passwordProblem, type PasswordContext } from "@/lib/password-policy";
 import {
-  AUTH_LOGIN_RATE_LIMIT,
+  AUTH_LIMITS,
   AUTH_SIGNUP_RATE_LIMIT,
-  enforceRateLimit,
+  allowAuthAttempt,
   getClientIp,
 } from "@/lib/rate-limit.server";
-import { getSupabaseAdmin } from "@/lib/supabase/admin.server";
+import { clearPasswordRecovery, hasPasswordRecovery } from "@/lib/recovery.server";
+import { safeNextPath } from "@/lib/safe-redirect";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
-const SL_PHONE_REGEX = /^(?:\+94|0)?7\d{8}$/;
+/**
+ * These return their errors instead of throwing: a live Next.js site replaces thrown
+ * messages with a generic one, and customers need to see what to fix.
+ */
+export type AuthResult<T = object> =
+  | ({ ok: true } & T)
+  | { ok: false; error: string; fields?: Record<string, string> };
 
-function sanitizeNextUrl(raw?: string | null): string {
-  if (!raw) return "/account";
-  const trimmed = raw.trim();
-  if (trimmed.startsWith("/") && !trimmed.startsWith("//") && !trimmed.startsWith("/\\")) {
-    return trimmed;
-  }
-  return "/account";
-}
+const SL_PHONE_REGEX = /^(?:\+94|0)?7\d{8}$/;
+const TOO_MANY = "Too many attempts. Please wait a few minutes and try again.";
+const BREACHED = "This password has appeared in a known data leak, so it isn’t safe to use. Please choose another.";
+const SOMETHING_WRONG = "Something went wrong. Please try again.";
 
 function normalizePhone(raw: string): string {
   const digits = raw.replace(/[\s-]/g, "").replace(/^\+94/, "0");
   return digits.startsWith("0") ? digits : `0${digits}`;
 }
 
+const phoneSchema = z
+  .string()
+  .trim()
+  .refine((v) => SL_PHONE_REGEX.test(v.replace(/[\s-]/g, "")), "Enter a Sri Lankan mobile number, like 077 123 4567.");
+const nameSchema = z.string().trim().min(2, "Enter your name.").max(80, "Use 80 characters or fewer.");
+const emailSchema = z.string().trim().toLowerCase().email("Enter a valid email address.").max(254);
+
+function fieldErrors(error: z.ZodError) {
+  const fields: Record<string, string> = {};
+  for (const issue of error.issues) {
+    const key = String(issue.path[0] ?? "form");
+    fields[key] ??= issue.message;
+  }
+  return fields;
+}
+
+async function requestContext() {
+  const hdrs = await headers();
+  return {
+    ip: getClientIp({ headers: hdrs }),
+    origin: hdrs.get("origin") || process.env.NEXT_PUBLIC_SITE_URL || "https://almera.lk",
+  };
+}
+
+async function newPasswordProblem(password: string, context: PasswordContext) {
+  return passwordProblem(password, context) ?? ((await isBreachedPassword(password)) ? BREACHED : null);
+}
+
 const signUpSchema = z.object({
-  name: z.string().trim().min(2, "Please enter your name."),
-  email: z.string().trim().email("Please enter a valid email address.").toLowerCase(),
-  phone: z
-    .string()
-    .trim()
-    .refine((v) => SL_PHONE_REGEX.test(v.replace(/[\s-]/g, "")), {
-      message: "Please enter a valid Sri Lankan mobile number (e.g. 077 123 4567).",
-    }),
-  password: z.string().min(8, "Password must be at least 8 characters long."),
+  name: nameSchema,
+  email: emailSchema,
+  phone: phoneSchema,
+  password: z.string().max(200),
+  acceptedPolicy: z.literal(true, "Please accept the order policy to continue."),
 });
 
-export async function signUpAction(rawInput: z.input<typeof signUpSchema>) {
-  const hdrs = await headers();
-  const ip = getClientIp({ headers: hdrs });
-  enforceRateLimit(ip, AUTH_SIGNUP_RATE_LIMIT);
+export async function signUpAction(rawInput: z.input<typeof signUpSchema>): Promise<AuthResult<{ message: string }>> {
+  const parsed = signUpSchema.safeParse(rawInput);
+  if (!parsed.success) {
+    return { ok: false, error: "Please check the highlighted details.", fields: fieldErrors(parsed.error) };
+  }
+  const { name, email, phone, password } = parsed.data;
 
-  const parsed = signUpSchema.parse(rawInput);
-  const cleanPhone = normalizePhone(parsed.phone);
+  const passwordIssue = await newPasswordProblem(password, { email, name });
+  if (passwordIssue) return { ok: false, error: passwordIssue, fields: { password: passwordIssue } };
+
+  // The same reply for new and existing emails, so nobody can test who has an account.
+  const message = "If this email can be used, we’ve sent it a link to activate your account. Check your inbox and spam folder.";
+
+  const { ip, origin } = await requestContext();
+  if (!(await allowAuthAttempt(ip, AUTH_SIGNUP_RATE_LIMIT))) return { ok: false, error: TOO_MANY };
+  if (!(await allowAuthAttempt(email, AUTH_LIMITS.signupEmail))) return { ok: true, message };
 
   const supabase = await createSupabaseServerClient();
-  const origin = hdrs.get("origin") || process.env.NEXT_PUBLIC_SITE_URL || "https://almera.lk";
-
-  const { data, error } = await supabase.auth.signUp({
-    email: parsed.email,
-    password: parsed.password,
+  const { error } = await supabase.auth.signUp({
+    email,
+    password,
     options: {
       emailRedirectTo: `${origin}/auth/callback?next=/account`,
-      data: {
-        full_name: parsed.name,
-        name: parsed.name,
-        phone: cleanPhone,
-      },
+      data: { full_name: name, name, phone: normalizePhone(phone) },
     },
   });
 
-  if (error) {
-    if (error.message?.toLowerCase().includes("already registered")) {
-      return {
-        success: true,
-        needsEmailConfirmation: true,
-        message:
-          "If an account exists with this email, a confirmation link has been sent. Please check your inbox.",
-      };
-    }
-    throw new Error(error.message);
+  if (error && error.code !== "user_already_exists" && error.code !== "email_exists") {
+    if (error.code === "weak_password") return { ok: false, error: BREACHED, fields: { password: BREACHED } };
+    console.error("[auth] Sign-up failed:", error.code);
+    return { ok: false, error: SOMETHING_WRONG };
   }
-
-  // If Supabase has email confirmation disabled, user session is immediate
-  if (data.session) {
-    return {
-      success: true,
-      needsEmailConfirmation: false,
-      message: "Account created successfully!",
-    };
-  }
-
-  return {
-    success: true,
-    needsEmailConfirmation: true,
-    message: "We’ve sent a confirmation link to your email. Please check your inbox to activate your account.",
-  };
+  return { ok: true, message };
 }
 
 const signInSchema = z.object({
-  email: z.string().trim().email("Please enter a valid email address.").toLowerCase(),
-  password: z.string().min(1, "Please enter your password."),
+  email: emailSchema,
+  password: z.string().min(1, "Enter your password.").max(200),
   next: z.string().optional().nullable(),
 });
 
-export async function signInAction(rawInput: z.input<typeof signInSchema>) {
-  const hdrs = await headers();
-  const ip = getClientIp({ headers: hdrs });
-  enforceRateLimit(ip, AUTH_LOGIN_RATE_LIMIT);
+export async function signInAction(rawInput: z.input<typeof signInSchema>): Promise<AuthResult<{ redirectUrl: string }>> {
+  const parsed = signInSchema.safeParse(rawInput);
+  if (!parsed.success) {
+    return { ok: false, error: "Please check your details.", fields: fieldErrors(parsed.error) };
+  }
 
-  const parsed = signInSchema.parse(rawInput);
+  const { ip } = await requestContext();
+  const allowed = (await allowAuthAttempt(ip, AUTH_LIMITS.loginIp)) && (await allowAuthAttempt(parsed.data.email, AUTH_LIMITS.loginEmail));
+  if (!allowed) {
+    return { ok: false, error: "Too many sign-in attempts. Please wait 15 minutes, or reset your password." };
+  }
+
   const supabase = await createSupabaseServerClient();
-
   const { data, error } = await supabase.auth.signInWithPassword({
-    email: parsed.email,
-    password: parsed.password,
+    email: parsed.data.email,
+    password: parsed.data.password,
   });
 
   if (error || !data.user) {
-    throw new Error("Invalid email or password. Please try again.");
+    return { ok: false, error: "Incorrect email or password. If you’ve just signed up, confirm your email first." };
   }
 
-  // Link guest orders if not linked yet
-  if (data.user.email) {
-    try {
-      const admin = getSupabaseAdmin();
-      await admin.rpc("link_guest_orders_to_user", {
-        p_user_id: data.user.id,
-        p_email: data.user.email,
-      });
-    } catch {
-      // non-blocking
-    }
-  }
-
-  return {
-    success: true,
-    redirectUrl: sanitizeNextUrl(parsed.next),
-  };
+  await linkGuestOrders(data.user);
+  return { ok: true, redirectUrl: safeNextPath(parsed.data.next) };
 }
 
-export async function signInWithGoogleAction(nextUrl?: string | null) {
-  const hdrs = await headers();
-  const origin = hdrs.get("origin") || process.env.NEXT_PUBLIC_SITE_URL || "https://almera.lk";
+export async function signInWithGoogleAction(nextUrl?: string | null): Promise<AuthResult> {
+  const { origin } = await requestContext();
   const supabase = await createSupabaseServerClient();
-  const sanitizedNext = sanitizeNextUrl(nextUrl);
-
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "google",
-    options: {
-      redirectTo: `${origin}/auth/callback?next=${encodeURIComponent(sanitizedNext)}`,
-    },
+    options: { redirectTo: `${origin}/auth/callback?next=${encodeURIComponent(safeNextPath(nextUrl))}` },
   });
 
-  if (error || !data.url) {
-    throw new Error(error?.message || "Could not initialize Google sign in.");
-  }
-
+  if (error || !data.url) return { ok: false, error: "Google sign-in isn’t available right now. Please try again." };
   redirect(data.url);
 }
 
 export async function signOutAction() {
   const supabase = await createSupabaseServerClient();
   await supabase.auth.signOut();
+  await clearPasswordRecovery();
   redirect("/account/login");
 }
 
-export async function requestPasswordResetAction(rawEmail: string) {
-  const hdrs = await headers();
-  const ip = getClientIp({ headers: hdrs });
-  enforceRateLimit(ip, {
-    namespace: "password-reset",
-    maxRequests: 3,
-    windowMs: 15 * 60 * 1000,
-  });
-
-  const email = z.string().trim().email().toLowerCase().parse(rawEmail);
-  const origin = hdrs.get("origin") || process.env.NEXT_PUBLIC_SITE_URL || "https://almera.lk";
+export async function signOutEverywhereAction() {
   const supabase = await createSupabaseServerClient();
-
-  await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${origin}/auth/callback?next=/account/reset-password`,
-  });
-
-  return {
-    success: true,
-    message: "If an account exists with this email, a password reset link has been sent. Please check your inbox.",
-  };
+  await supabase.auth.signOut({ scope: "global" });
+  await clearPasswordRecovery();
+  redirect("/account/login");
 }
 
-export async function resetPasswordAction(newPassword: string) {
-  const user = await requireUser();
-  const validPassword = z.string().min(8, "Password must be at least 8 characters long.").parse(newPassword);
+export async function requestPasswordResetAction(rawEmail: string): Promise<AuthResult<{ message: string }>> {
+  const parsed = emailSchema.safeParse(rawEmail);
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
 
-  const supabase = await createSupabaseServerClient();
-  const { error } = await supabase.auth.updateUser({
-    password: validPassword,
-  });
+  const message = "If there’s an account with this email, we’ve sent it a link to set a new password. It works for a short time, so use it soon.";
 
-  if (error) {
-    throw new Error(error.message);
+  const { ip, origin } = await requestContext();
+  if (!(await allowAuthAttempt(ip, AUTH_LIMITS.resetIp))) return { ok: false, error: TOO_MANY };
+  if (await allowAuthAttempt(parsed.data, AUTH_LIMITS.resetEmail)) {
+    const supabase = await createSupabaseServerClient();
+    await supabase.auth.resetPasswordForEmail(parsed.data, {
+      redirectTo: `${origin}/auth/callback?next=/account/reset-password`,
+    });
+  }
+  return { ok: true, message };
+}
+
+/** Sends the link to the signed-in customer's own email, for accounts that only use Google. */
+export async function sendPasswordLinkAction(): Promise<AuthResult<{ message: string }>> {
+  const user = await getCurrentUser();
+  if (!user?.email) return { ok: false, error: "Please sign in again." };
+  return requestPasswordResetAction(user.email);
+}
+
+/** Needs the recovery proof set when the emailed link is opened, not just a session. */
+export async function resetPasswordAction(newPassword: string): Promise<AuthResult> {
+  const user = await getCurrentUser();
+  if (!user || !(await hasPasswordRecovery(user.id))) {
+    return { ok: false, error: "This link has expired. Please request a new one." };
   }
 
-  return {
-    success: true,
-    message: "Your password has been updated successfully.",
-  };
+  const problem = await newPasswordProblem(String(newPassword).slice(0, 200), {
+    email: user.email,
+    name: user.user_metadata?.full_name,
+  });
+  if (problem) return { ok: false, error: problem };
+
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase.auth.updateUser({ password: newPassword });
+  if (error) {
+    return { ok: false, error: error.code === "same_password" ? "Please choose a different password from your last one." : SOMETHING_WRONG };
+  }
+
+  await clearPasswordRecovery();
+  await supabase.auth.signOut({ scope: "others" });
+  return { ok: true };
 }
 
-export async function getCustomerProfileAction() {
-  const user = await requireUser();
+/** Asks for the current password, so someone at an unlocked phone can't take over the account. */
+export async function changePasswordAction(input: { current: string; next: string }): Promise<AuthResult> {
+  const user = await getCurrentUser();
+  if (!user?.email) return { ok: false, error: "Please sign in again." };
+
+  if (!(await allowAuthAttempt(user.id, AUTH_LIMITS.passwordChange))) return { ok: false, error: TOO_MANY };
+
+  const current = String(input.current).slice(0, 200);
+  const next = String(input.next).slice(0, 200);
+
+  const problem = await newPasswordProblem(next, { email: user.email, name: user.user_metadata?.full_name });
+  if (problem) return { ok: false, error: problem, fields: { next: problem } };
+  if (next === current) {
+    const same = "Please choose a different password from your current one.";
+    return { ok: false, error: same, fields: { next: same } };
+  }
+
+  // A separate client, so checking the password leaves this device's session alone.
+  const checker = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  const { error: wrongPassword } = await checker.auth.signInWithPassword({ email: user.email, password: current });
+  if (wrongPassword) {
+    const wrong = "That isn’t your current password.";
+    return { ok: false, error: wrong, fields: { current: wrong } };
+  }
+  await checker.auth.signOut({ scope: "local" });
+
   const supabase = await createSupabaseServerClient();
-
-  const { data, error } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  if (error || !data) {
+  const { error } = await supabase.auth.updateUser({ password: next });
+  if (error) {
     return {
-      id: user.id,
-      email: user.email ?? "",
-      full_name: (user.user_metadata?.full_name || user.user_metadata?.name || "") as string,
-      phone: (user.user_metadata?.phone || "") as string,
-      default_shipping_address: "",
-      default_shipping_city: "",
-      default_shipping_district: "",
+      ok: false,
+      error: error.code === "reauthentication_needed" ? "For your security, please sign out and back in, then try again." : SOMETHING_WRONG,
     };
   }
 
-  return {
-    id: data.id,
-    email: data.email || user.email || "",
-    full_name: data.full_name || "",
-    phone: data.phone || "",
-    default_shipping_address: data.default_shipping_address || "",
-    default_shipping_city: data.default_shipping_city || "",
-    default_shipping_district: data.default_shipping_district || "",
-  };
+  // Anyone else signed in to this account is removed once the password changes.
+  await supabase.auth.signOut({ scope: "others" });
+  return { ok: true };
 }
 
-export async function updateCustomerProfileAction(input: {
-  fullName: string;
-  phone: string;
-  defaultAddress?: string;
-  defaultCity?: string;
-  defaultDistrict?: string;
-}) {
-  const user = await requireUser();
-  const cleanPhone = input.phone.trim() ? normalizePhone(input.phone) : "";
+const profileSchema = z.object({
+  fullName: nameSchema,
+  phone: z.union([z.literal(""), phoneSchema]),
+});
+
+export async function updateCustomerProfileAction(input: z.input<typeof profileSchema>): Promise<AuthResult> {
+  const parsed = profileSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: "Please check the highlighted details.", fields: fieldErrors(parsed.error) };
+  }
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "Please sign in again." };
 
   const supabase = await createSupabaseServerClient();
   const { error } = await supabase
     .from("profiles")
     .update({
-      full_name: input.fullName.trim(),
-      phone: cleanPhone || null,
-      default_shipping_address: input.defaultAddress?.trim() || null,
-      default_shipping_city: input.defaultCity?.trim() || null,
-      default_shipping_district: input.defaultDistrict?.trim() || null,
+      full_name: parsed.data.fullName,
+      phone: parsed.data.phone ? normalizePhone(parsed.data.phone) : null,
     })
     .eq("id", user.id);
 
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  return { success: true };
-}
-
-export async function getCustomerAddressesAction() {
-  const user = await requireUser();
-  const supabase = await createSupabaseServerClient();
-
-  const { data, error } = await supabase
-    .from("customer_addresses")
-    .select("*")
-    .eq("user_id", user.id)
-    .order("is_default", { ascending: false })
-    .order("created_at", { ascending: false });
-
-  if (error || !data) return [];
-  return data;
-}
-
-export async function upsertCustomerAddressAction(input: {
-  id?: string;
-  label?: string;
-  recipientName: string;
-  phone: string;
-  address: string;
-  city: string;
-  district: string;
-  postalCode?: string;
-  isDefault?: boolean;
-}) {
-  const user = await requireUser();
-  const supabase = await createSupabaseServerClient();
-  const cleanPhone = normalizePhone(input.phone);
-
-  if (input.isDefault) {
-    // Clear default flag on existing addresses
-    await supabase
-      .from("customer_addresses")
-      .update({ is_default: false })
-      .eq("user_id", user.id);
-  }
-
-  const row = {
-    user_id: user.id,
-    label: input.label?.trim() || "Home",
-    recipient_name: input.recipientName.trim(),
-    phone: cleanPhone,
-    address: input.address.trim(),
-    city: input.city.trim(),
-    district: input.district.trim(),
-    postal_code: input.postalCode?.trim() || null,
-    is_default: Boolean(input.isDefault),
-    updated_at: new Date().toISOString(),
-    ...(input.id ? { id: input.id } : {}),
-  };
-
-  const { data, error } = await supabase
-    .from("customer_addresses")
-    .upsert(row)
-    .select()
-    .single();
-
-  if (error) throw new Error(error.message);
-  return data;
-}
-
-export async function deleteCustomerAddressAction(addressId: string) {
-  const user = await requireUser();
-  const supabase = await createSupabaseServerClient();
-
-  const { error } = await supabase
-    .from("customer_addresses")
-    .delete()
-    .eq("id", addressId)
-    .eq("user_id", user.id);
-
-  if (error) throw new Error(error.message);
-  return { success: true };
+  return error ? { ok: false, error: SOMETHING_WRONG } : { ok: true };
 }
 
 export type CustomerAddressRecord = {
@@ -353,19 +293,114 @@ export type CustomerAddressRecord = {
   is_default: boolean;
 };
 
+const MAX_ADDRESSES = 10;
+
+const addressSchema = z.object({
+  id: z.string().uuid().optional(),
+  label: z.string().trim().max(30, "Use 30 characters or fewer.").optional(),
+  recipientName: nameSchema,
+  phone: phoneSchema,
+  address: z.string().trim().min(5, "Enter your house number and street.").max(200, "Use 200 characters or fewer."),
+  city: z.string().trim().min(2, "Enter your city or town.").max(80, "Use 80 characters or fewer."),
+  district: z.string().refine((d) => (DISTRICTS as readonly string[]).includes(d), "Choose your district."),
+  postalCode: z.union([z.literal(""), z.string().trim().regex(/^\d{5}$/, "Postal codes have 5 digits.")]).optional(),
+  isDefault: z.boolean().optional(),
+});
+
+async function listAddresses(supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>, userId: string) {
+  const { data } = await supabase
+    .from("customer_addresses")
+    .select(ADDRESS_COLUMNS)
+    .eq("user_id", userId)
+    .order("is_default", { ascending: false })
+    .order("created_at", { ascending: false });
+  return (data ?? []) as CustomerAddressRecord[];
+}
+
+type AddressResult = AuthResult<{ addresses: CustomerAddressRecord[] }>;
+
+export async function upsertCustomerAddressAction(input: z.input<typeof addressSchema>): Promise<AddressResult> {
+  const parsed = addressSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: "Please check the highlighted details.", fields: fieldErrors(parsed.error) };
+  }
+  const user = await requireUser().catch(() => null);
+  if (!user) return { ok: false, error: "Please sign in again." };
+
+  const { id, label, recipientName, phone, address, city, district, postalCode, isDefault } = parsed.data;
+  const supabase = await createSupabaseServerClient();
+  const existing = await listAddresses(supabase, user.id);
+
+  if (!id && existing.length >= MAX_ADDRESSES) {
+    return { ok: false, error: `You can save up to ${MAX_ADDRESSES} addresses. Remove one to add another.` };
+  }
+
+  const makeDefault = Boolean(isDefault) || existing.length === 0 || existing.every((a) => a.id === id);
+  if (makeDefault) {
+    await supabase.from("customer_addresses").update({ is_default: false }).eq("user_id", user.id);
+  }
+
+  const row = {
+    label: label || "Home",
+    recipient_name: recipientName,
+    phone: normalizePhone(phone),
+    address,
+    city,
+    district,
+    postal_code: postalCode || null,
+    is_default: makeDefault,
+    updated_at: new Date().toISOString(),
+  };
+
+  const { error } = id
+    ? await supabase.from("customer_addresses").update(row).eq("id", id).eq("user_id", user.id)
+    : await supabase.from("customer_addresses").insert({ ...row, user_id: user.id });
+
+  if (error) return { ok: false, error: SOMETHING_WRONG };
+  return { ok: true, addresses: await listAddresses(supabase, user.id) };
+}
+
+export async function setDefaultAddressAction(addressId: string): Promise<AddressResult> {
+  const id = z.string().uuid().safeParse(addressId);
+  const user = await getCurrentUser();
+  if (!id.success || !user) return { ok: false, error: SOMETHING_WRONG };
+
+  const supabase = await createSupabaseServerClient();
+  const existing = await listAddresses(supabase, user.id);
+  if (!existing.some((a) => a.id === id.data)) return { ok: false, error: SOMETHING_WRONG };
+
+  await supabase.from("customer_addresses").update({ is_default: false }).eq("user_id", user.id);
+  const { error } = await supabase.from("customer_addresses").update({ is_default: true }).eq("id", id.data).eq("user_id", user.id);
+  if (error) return { ok: false, error: SOMETHING_WRONG };
+  return { ok: true, addresses: await listAddresses(supabase, user.id) };
+}
+
+export async function deleteCustomerAddressAction(addressId: string): Promise<AddressResult> {
+  const id = z.string().uuid().safeParse(addressId);
+  const user = await getCurrentUser();
+  if (!id.success || !user) return { ok: false, error: SOMETHING_WRONG };
+
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase.from("customer_addresses").delete().eq("id", id.data).eq("user_id", user.id);
+  if (error) return { ok: false, error: SOMETHING_WRONG };
+
+  // Checkout preselects the default, so another address takes over when it's removed.
+  const addresses = await listAddresses(supabase, user.id);
+  if (addresses.length > 0 && !addresses.some((a) => a.is_default)) {
+    await supabase.from("customer_addresses").update({ is_default: true }).eq("id", addresses[0].id).eq("user_id", user.id);
+    return { ok: true, addresses: await listAddresses(supabase, user.id) };
+  }
+  return { ok: true, addresses };
+}
+
 export async function getCheckoutCustomerDataAction() {
   const user = await getCurrentUser();
   if (!user) return null;
 
   const supabase = await createSupabaseServerClient();
-  const [profileRes, addressesRes] = await Promise.all([
+  const [profileRes, addresses] = await Promise.all([
     supabase.from("profiles").select("*").eq("id", user.id).maybeSingle(),
-    supabase
-      .from("customer_addresses")
-      .select("*")
-      .eq("user_id", user.id)
-      .order("is_default", { ascending: false })
-      .order("created_at", { ascending: false }),
+    listAddresses(supabase, user.id),
   ]);
 
   return {
@@ -374,7 +409,6 @@ export async function getCheckoutCustomerDataAction() {
       full_name: (user.user_metadata?.full_name || user.user_metadata?.name || "") as string,
       phone: (user.user_metadata?.phone || "") as string,
     },
-    addresses: (addressesRes.data || []) as CustomerAddressRecord[],
+    addresses,
   };
 }
-

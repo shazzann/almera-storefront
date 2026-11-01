@@ -531,7 +531,7 @@ export function CheckoutForm() {
           <div className="flex items-center justify-between rounded-2xl border border-line bg-ivory px-4 py-3 text-xs text-charcoal">
             <span>Already have an Almera account?</span>
             <Link
-              href="/account/login?redirect=/checkout"
+              href="/account/login?next=/checkout"
               className="font-semibold text-sage-deep underline underline-offset-4 hover:text-ink"
             >
               Sign in for faster checkout →

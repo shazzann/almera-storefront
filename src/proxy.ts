@@ -37,7 +37,7 @@ export async function proxy(request: NextRequest) {
 
     if (!user) {
       const loginUrl = new URL("/account/login", request.url);
-      loginUrl.searchParams.set("next", path);
+      loginUrl.searchParams.set("next", `${path}${request.nextUrl.search}`);
       return NextResponse.redirect(loginUrl);
     }
 
@@ -54,7 +54,7 @@ export async function proxy(request: NextRequest) {
     path === "/account/forgot-password" ||
     path === "/account/reset-password";
 
-  if (path.startsWith("/account")) {
+  if (path === "/account" || path.startsWith("/account/")) {
     if (!isAuthPage) {
       const {
         data: { user },
@@ -62,7 +62,7 @@ export async function proxy(request: NextRequest) {
 
       if (!user) {
         const loginUrl = new URL("/account/login", request.url);
-        loginUrl.searchParams.set("next", path);
+        loginUrl.searchParams.set("next", `${path}${request.nextUrl.search}`);
         return NextResponse.redirect(loginUrl);
       }
     } else if (path === "/account/login" || path === "/account/signup") {
