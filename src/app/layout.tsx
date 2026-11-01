@@ -50,7 +50,6 @@ export const metadata: Metadata = {
       },
     ],
   },
-  icons: { apple: "/brand/almera-logo.jpg" },
 };
 
 export const viewport: Viewport = {
