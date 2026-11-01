@@ -191,6 +191,10 @@ export const previewSource: AdminSource = {
     if (i >= 0) data.coupons[i] = { ...data.coupons[i], ...c };
     else data.coupons.unshift({ ...c, id: `k${Date.now()}`, used_count: 0 });
   },
+  async deleteProduct(id) {
+    await pause();
+    data.products = data.products.filter((p) => p.id !== id);
+  },
   async deleteCoupon(id) {
     await pause();
     data.coupons = data.coupons.filter((c) => c.id !== id);

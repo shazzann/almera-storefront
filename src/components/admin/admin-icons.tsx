@@ -65,9 +65,6 @@ export const SignOutIcon = (p: P) => (
 export const TrashIcon = (p: P) => (
   <svg {...base} {...p}><path d="M4.500 7h15M9.500 7V4.500h5V7M6.500 7l1 13h9l1-13" /></svg>
 );
-export const ShareIcon = (p: P) => (
-  <svg {...base} {...p}><path d="M12 15V4M8 7.500 12 3.500l4 4" /><path d="M6 11v9h12v-9" /></svg>
-);
 export const AddToHomeIcon = (p: P) => (
   <svg {...base} {...p}><rect x="6.500" y="3" width="11" height="18" rx="2.500" /><path d="M12 9v6M9 12h6" /></svg>
 );

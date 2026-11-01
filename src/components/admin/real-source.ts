@@ -2,6 +2,7 @@
 
 import {
   deleteCouponAction,
+  deleteProductAction,
   getAdminDashboardDataAction,
   getAdminStatusAction,
   recordBankDepositAction,
@@ -65,6 +66,9 @@ export const realSource: AdminSource = {
       allowed_categories: payload.allowed_categories ?? [],
       allowed_subcategories: payload.allowed_subcategories ?? [],
     });
+  },
+  async deleteProduct(id) {
+    return deleteProductAction(await token(), id);
   },
   async deleteCoupon(id) {
     return deleteCouponAction(await token(), id);

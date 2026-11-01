@@ -167,6 +167,7 @@ export type AdminSource = {
   refund(params: { orderId: string; refundAmount: number; reason: string }): Promise<unknown>;
   saveCoupon(payload: Coupon): Promise<unknown>;
   deleteCoupon(id: string): Promise<unknown>;
+  deleteProduct(id: string): Promise<unknown>;
   saveCategory(payload: CategoryRow): Promise<unknown>;
   reorderCategories(slugs: string[]): Promise<unknown>;
   saveHero(payload: HeroSettings): Promise<unknown>;
@@ -411,17 +412,6 @@ export function orderWhatsAppText(o: Order) {
   return `Hi ${first}, this is almera about your order ${o.order_number}.`;
 }
 
-export function courierText(o: Order) {
-  const balance = getCodBalanceDue(o);
-  return [
-    o.order_number,
-    o.customer_name,
-    o.phone,
-    `${o.address}, ${o.city}, ${o.district}`,
-    `Collect on delivery: ${formatLKR(balance)}`,
-  ].join("\n");
-}
-
 export function discountLabel(c: Coupon) {
   if (c.discount_type === "free_delivery") return "Free delivery";
   if (c.discount_type === "percentage") return `${num(c.discount_value)}% off`;
@@ -504,6 +494,7 @@ const ACTIVITY_VERB: Record<string, string> = {
   refund_order: "Refunded order",
   upsert_coupon: "Saved promo",
   delete_coupon: "Deleted promo",
+  delete_product: "Deleted product",
   upsert_category: "Saved category",
   reorder_categories: "Changed category order",
   update_hero: "Updated homepage hero",
@@ -512,7 +503,7 @@ const ACTIVITY_VERB: Record<string, string> = {
 
 export function describeActivity(log: AuditLog) {
   const d = log.details ?? {};
-  const name = log.action === "update_hero" ? "" : String(d.order_number ?? d.slug ?? d.code ?? d.name ?? "");
+  const name = log.action === "update_hero" ? "" : String(d.order_number ?? (log.action === "delete_product" ? d.name : d.slug) ?? d.code ?? d.name ?? "");
   const verb = ACTIVITY_VERB[log.action] ?? log.action.replace(/_/g, " ");
   let detail = "";
   if (log.action === "update_order_status") {

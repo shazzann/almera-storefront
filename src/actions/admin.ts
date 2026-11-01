@@ -281,6 +281,36 @@ export async function upsertProductAction(
   return data;
 }
 
+export async function deleteProductAction(
+  accessToken: string | null | undefined,
+  productId: string,
+) {
+  const admin = await assertAdmin(accessToken);
+  const supabase = getSupabaseAdmin(accessToken);
+
+  // Orders keep their own copy of the name, price and photo, so past orders stay readable.
+  const { data, error } = await supabase
+    .from("products")
+    .delete()
+    .eq("id", productId)
+    .select("id, slug, name, categories")
+    .single();
+
+  if (error) throw new Error(error.message);
+
+  await logAuditEvent({
+    userId: admin.userId,
+    action: "delete_product",
+    entityType: "product",
+    entityId: data.id,
+    details: { name: data.name, slug: data.slug },
+    accessToken,
+  });
+
+  revalidateCatalogCache([data.slug], data.categories);
+  return { success: true };
+}
+
 export async function updateOrderStatusAction(
   accessToken: string | null | undefined,
   params: {

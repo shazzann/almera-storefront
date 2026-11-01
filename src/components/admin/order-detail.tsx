@@ -6,11 +6,10 @@ import { CheckIcon, WhatsAppIcon } from "@/components/icons";
 import { formatLKR } from "@/lib/catalog";
 import { COD_MIN_DEPOSIT, getCodBalanceDue } from "@/lib/cod-deposit";
 import { useAdmin } from "./admin-app";
-import { CopyIcon, MoreIcon, PhoneIcon, PrintIcon, ShareIcon } from "./admin-icons";
+import { MoreIcon, PhoneIcon, PrintIcon } from "./admin-icons";
 import {
   STATUS_CHOICES,
   STATUS_LABEL,
-  courierText,
   needsDeposit,
   nextStep,
   num,
@@ -61,25 +60,6 @@ export function OrderDetail({ id }: { id: string | null }) {
     }
   }
 
-  async function copy(text: string, message: string) {
-    try {
-      await navigator.clipboard.writeText(text);
-      toast(message);
-    } catch {
-      toast("Couldn't copy on this phone. Press and hold the text instead.", "err");
-    }
-  }
-
-  async function share() {
-    const text = courierText(order!);
-    if (navigator.share) {
-      await navigator.share({ title: order!.order_number, text }).catch(() => {});
-    } else {
-      await copy(text, "Courier details copied");
-    }
-    close();
-  }
-
   return (
     <>
       <TopBar
@@ -110,8 +90,8 @@ export function OrderDetail({ id }: { id: string | null }) {
             <a href={whatsappUrl(order.phone, orderWhatsAppText(order))} target="_blank" rel="noreferrer" className="flex min-h-[3.75rem] flex-col items-center justify-center gap-1 rounded-xl bg-mist text-[0.82rem] font-medium">
               <WhatsAppIcon className="size-5" /> WhatsApp
             </a>
-            <button onClick={() => copy(`${order.customer_name}\n${order.phone}\n${order.address}, ${order.city}, ${order.district}`, "Address copied")} className="flex min-h-[3.75rem] flex-col items-center justify-center gap-1 rounded-xl bg-mist text-[0.82rem] font-medium">
-              <CopyIcon className="size-5" /> Copy address
+            <button onClick={() => { if (!printPackingSlip(order)) toast("Allow pop-ups for this site to print.", "err"); }} className="flex min-h-[3.75rem] flex-col items-center justify-center gap-1 rounded-xl bg-mist text-[0.82rem] font-medium">
+              <PrintIcon className="size-5" /> Print slip
             </button>
           </div>
           {order.notes && (
@@ -240,8 +220,6 @@ export function OrderDetail({ id }: { id: string | null }) {
 
       <AdminSheet open={sheet === "actions"} onClose={close} title="order options">
         <div className="p-2 pb-6">
-          <ActionRow Icon={PrintIcon} label="Print packing slip" onClick={() => { if (!printPackingSlip(order)) toast("Allow pop-ups for this site to print.", "err"); close(); }} />
-          <ActionRow Icon={ShareIcon} label="Share courier details" onClick={share} />
           <ActionRow Icon={CheckIcon} label="Change status" onClick={() => setSheet("status")} />
           {canRefund && <ActionRow label="Refund" onClick={() => setSheet("refund")} />}
           {canCancel && <ActionRow label="Cancel order" danger onClick={() => setSheet("cancel")} />}

@@ -5,8 +5,8 @@ import { useEffect, useState } from "react";
 import { CheckIcon, ChevronIcon, CloseIcon, PlusIcon } from "@/components/icons";
 import { DENIM_SIZES, SIZES, formatLKR, nameWithColour } from "@/lib/catalog";
 import { useAdmin } from "./admin-app";
-import { CameraIcon } from "./admin-icons";
-import { EmptyState, Field, NumberInput, StickyBar, StockRow, SwitchRow, TopBar, Card } from "./ui";
+import { CameraIcon, TrashIcon } from "./admin-icons";
+import { AdminSheet, EmptyState, Field, NumberInput, StickyBar, StockRow, SwitchRow, TopBar, Card } from "./ui";
 import { colourGroupOf, num, productPayload, renameForColour, stockRows, uniqueSlug, type ProductRow, type Tag } from "./lib";
 
 const FABRICS = ["Lawn", "Cotton", "Rayon", "Muslin", "Khushboo", "Hakoba", "Chiffon", "Silk", "Denim"];
@@ -125,7 +125,12 @@ export function ProductEditor({ id }: { id: string | null }) {
   const colourOf = id?.startsWith(NEW_COLOUR_PREFIX) ? id.slice(NEW_COLOUR_PREFIX.length) : null;
   const source = colourOf ? data.products.find((p) => p.slug === colourOf) : undefined;
   const isNew = id === "new" || Boolean(source);
-  const existing = data.products.find((p) => p.id === id || p.slug === id);
+  const found = data.products.find((p) => p.id === id || p.slug === id);
+  // Keeps the form on screen while a deleted product's sheet closes and the list opens.
+  const [lastFound, setLastFound] = useState(found);
+  const [deleting, setDeleting] = useState(false);
+  if (found && found !== lastFound) setLastFound(found);
+  const existing = found ?? (deleting ? lastFound : undefined);
 
   if (!isNew && !existing) {
     return (
@@ -137,10 +142,12 @@ export function ProductEditor({ id }: { id: string | null }) {
       </>
     );
   }
-  return <EditorForm key={id ?? "new"} existing={existing} colourSource={source} />;
+  return <EditorForm key={id ?? "new"} existing={existing} colourSource={source} onDeleting={setDeleting} />;
 }
 
-function EditorForm({ existing, colourSource }: { existing?: ProductRow; colourSource?: ProductRow }) {
+const FINISHED_ORDERS = ["delivered", "cancelled", "refunded"];
+
+function EditorForm({ existing, colourSource, onDeleting }: { existing?: ProductRow; colourSource?: ProductRow; onDeleting: (deleting: boolean) => void }) {
   const { data, source, run, go, back, toast } = useAdmin();
   const isNew = !existing;
   const draftKey = colourSource ? `${NEW_DRAFT_KEY}.${colourSource.slug}` : NEW_DRAFT_KEY;
@@ -151,6 +158,8 @@ function EditorForm({ existing, colourSource }: { existing?: ProductRow; colourS
   const [uploading, setUploading] = useState(0);
   const [saving, setSaving] = useState(false);
   const [customPiece, setCustomPiece] = useState("");
+  const [askDelete, setAskDelete] = useState(false);
+  const [deleteBusy, setDeleteBusy] = useState(false);
 
   const set = <K extends keyof Form>(key: K, value: Form[K]) => {
     setForm((f) => ({ ...f, [key]: value }));
@@ -292,6 +301,21 @@ function EditorForm({ existing, colourSource }: { existing?: ProductRow; colourS
       back({ view: "products" });
     }
   }
+
+  async function remove() {
+    setDeleteBusy(true);
+    onDeleting(true);
+    const ok = await run(() => source.deleteProduct(existing!.id!), `${existing!.name} deleted`);
+    setDeleteBusy(false);
+    if (ok) {
+      setAskDelete(false);
+      setTimeout(() => back({ view: "products" }), 300);
+    } else {
+      onDeleting(false);
+    }
+  }
+
+  const openOrders = data.orders.filter((o) => !FINISHED_ORDERS.includes(o.status) && o.order_items?.some((it) => it.product_slug === existing?.slug)).length;
 
   return (
     <>
@@ -580,6 +604,12 @@ function EditorForm({ existing, colourSource }: { existing?: ProductRow; colourS
           <SwitchRow label="Show in store" hint="Turn off to hide it without deleting it." checked={form.isActive} onChange={(v) => set("isActive", v)} />
           <SwitchRow label="Show first in the store" hint="Puts it at the top of product lists." checked={form.isFeatured} onChange={(v) => set("isFeatured", v)} />
         </Card>
+
+        {existing && (
+          <button type="button" onClick={() => setAskDelete(true)} className="flex min-h-14 w-full items-center justify-center gap-2 rounded-[1.25rem] border border-line bg-ivory font-medium text-[#a5432f]">
+            <TrashIcon className="size-5" /> Delete product
+          </button>
+        )}
       </div>
 
       <StickyBar>
@@ -591,6 +621,23 @@ function EditorForm({ existing, colourSource }: { existing?: ProductRow; colourS
           {uploading > 0 ? "Uploading photos…" : saving ? "Saving…" : isNew ? `Add to store${form.soldStitched && num(form.priceStitched) ? ` · ${formatLKR(num(form.priceStitched))}` : ""}` : "Save changes"}
         </button>
       </StickyBar>
+
+      <AdminSheet open={askDelete} onClose={() => setAskDelete(false)} title="delete this product?">
+        <div className="p-5">
+          <p className="leading-relaxed text-ink/75">
+            <strong className="font-semibold text-ink">{existing?.name}</strong> will be removed from your store for good, and this can’t be undone. Past orders keep their details.
+            {colourSiblings.length > 1 ? " Its other colours stay in the store." : ""}
+          </p>
+          {openOrders > 0 && (
+            <p className="mt-3 rounded-xl bg-gold/15 px-3.5 py-2.5 text-[0.92rem] leading-snug">
+              {openOrders === 1 ? "1 open order includes" : `${openOrders} open orders include`} this product. You can still pack and send {openOrders === 1 ? "it" : "them"}.
+            </p>
+          )}
+          <p className="mt-3 text-[0.9rem] leading-snug text-ink/60">Might sell it again? Turn off Show in store to hide it instead.</p>
+          <button onClick={remove} disabled={deleteBusy} className="btn mt-5 w-full bg-[#a5432f] text-ivory">{deleteBusy ? "Deleting…" : "Yes, delete product"}</button>
+          <button onClick={() => setAskDelete(false)} disabled={deleteBusy} className="btn btn-ghost mt-2.5 w-full">Keep product</button>
+        </div>
+      </AdminSheet>
     </>
   );
 }
