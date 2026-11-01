@@ -1,12 +1,21 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
+import type { MouseEvent } from "react";
 import type { Product } from "@/lib/catalog";
 
-/** Each colour is its own listing, so choosing one opens that listing's photos, price and stock. */
-export function ColourPicker({ current, options }: { current: Product; options: Product[] }) {
+/** Each colour is its own listing with its own address, so these stay real links that can open in a new tab. */
+export function ColourPicker({ current, options, onSelect }: { current: Product; options: Product[]; onSelect: (slug: string) => void }) {
+  const choose = (e: MouseEvent, slug: string) => {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    e.preventDefault();
+    onSelect(slug);
+  };
+
   return (
     <div>
-      <p className="text-sm">
+      <p className="text-sm" aria-live="polite">
         <span className="text-ink/60">Colour: </span>
         <span className="font-medium">{current.colour}</span>
       </p>
@@ -18,6 +27,8 @@ export function ColourPicker({ current, options }: { current: Product; options: 
             <li key={o.slug} className="w-[4.5rem] shrink-0">
               <Link
                 href={`/product/${o.slug}`}
+                prefetch={false}
+                onClick={(e) => choose(e, o.slug)}
                 aria-current={active ? "true" : undefined}
                 aria-label={`${o.colour}${soldOut ? ", sold out" : ""}`}
                 className="block text-center"

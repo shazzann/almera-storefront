@@ -29,6 +29,16 @@ export function ProductPurchase({ product: p }: { product: Product }) {
   const mainButton = useRef<HTMLButtonElement>(null);
   const closeGuide = useCallback(() => setGuideOpen(false), [setGuideOpen]);
 
+  // Switching colour keeps the customer's choices wherever the new colour has them in stock.
+  const [shownSlug, setShownSlug] = useState(p.slug);
+  if (shownSlug !== p.slug) {
+    setShownSlug(p.slug);
+    setStitching(options.includes(stitching) && getOptionStock(p, stitching) > 0 ? stitching : initialOption);
+    setSize(size && (p.sizes ?? SIZES).includes(size) && getOptionStock(p, "stitched", size) > 0 ? size : null);
+    setSizeError(false);
+    setAdded(false);
+  }
+
   const needsSize = stitching === "stitched";
   const price = p.price[stitching] ?? 0;
   const was = p.wasPrice?.[stitching];
