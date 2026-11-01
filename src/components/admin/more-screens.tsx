@@ -49,6 +49,14 @@ export function MoreScreen() {
             </span>
             <ChevronIcon className="size-4 opacity-40" />
           </button>
+          <button onClick={() => go({ view: "gallery" })} className={rowClass}>
+            <span className={iconClass}><CameraIcon className="size-5" /></span>
+            <span className="min-w-0 flex-1">
+              <span className="block font-medium">Homepage gallery</span>
+              <span className="block truncate text-[0.82rem] text-ink/60">Instagram photos at the bottom</span>
+            </span>
+            <ChevronIcon className="size-4 opacity-40" />
+          </button>
           <button onClick={() => go({ view: "categories" })} className={rowClass}>
             <span className={iconClass}><LayersIcon className="size-5" /></span>
             <span className="flex-1 font-medium">Categories</span>

@@ -2,11 +2,13 @@
 
 import { z } from "zod";
 import { assertAdmin, logAuditEvent } from "@/lib/admin-auth.server";
-import { refreshCategoriesCache, refreshHeroCache, revalidateCatalogCache } from "@/lib/cache-invalidation.server";
+import { refreshCategoriesCache, refreshGalleryCache, refreshHeroCache, revalidateCatalogCache } from "@/lib/cache-invalidation.server";
 import {
   categories as frontendCategories,
   categoryGroups,
+  DEFAULT_GALLERY,
   DEFAULT_HERO,
+  GALLERY_SIZE,
   HERO_SEASON_MAX,
   type CategorySlug,
 } from "@/lib/catalog";
@@ -81,7 +83,7 @@ export async function getAdminDashboardDataAction(accessToken?: string | null) {
     .from("categories")
     .upsert(frontendCategoryRows, { onConflict: "slug", ignoreDuplicates: true });
 
-  const [categoriesRes, productsRes, ordersRes, couponsRes, auditRes, heroRes] = await Promise.all([
+  const [categoriesRes, productsRes, ordersRes, couponsRes, auditRes, heroRes, galleryRes] = await Promise.all([
     supabase
       .from("categories")
       .select("*")
@@ -98,6 +100,7 @@ export async function getAdminDashboardDataAction(accessToken?: string | null) {
     supabase.from("coupons").select("*").order("created_at", { ascending: false }),
     supabase.from("audit_log").select("*").order("created_at", { ascending: false }).limit(50),
     supabase.from("site_settings").select("value").eq("key", "hero").maybeSingle(),
+    supabase.from("site_settings").select("value").eq("key", "gallery").maybeSingle(),
   ]);
 
   return {
@@ -111,6 +114,7 @@ export async function getAdminDashboardDataAction(accessToken?: string | null) {
     coupons: couponsRes.data ?? [],
     auditLogs: auditRes.data ?? [],
     hero: { ...DEFAULT_HERO, ...(heroRes.data?.value ?? {}) },
+    gallery: { ...DEFAULT_GALLERY, ...(galleryRes.data?.value ?? {}) },
   };
 }
 
@@ -761,5 +765,36 @@ export async function updateHeroAction(
   });
 
   refreshHeroCache();
+  return value;
+}
+
+const galleryInputSchema = z.object({
+  tiles: z.array(z.string().trim().url().nullable()).length(GALLERY_SIZE),
+});
+
+export async function updateGalleryAction(
+  accessToken: string | null | undefined,
+  rawPayload: z.input<typeof galleryInputSchema>,
+) {
+  const admin = await assertAdmin(accessToken);
+  const value = galleryInputSchema.parse(rawPayload);
+  const supabase = getSupabaseAdmin(accessToken);
+
+  const { error } = await supabase
+    .from("site_settings")
+    .upsert({ key: "gallery", value, updated_at: new Date().toISOString() }, { onConflict: "key" });
+
+  if (error) throw new Error(error.message);
+
+  await logAuditEvent({
+    userId: admin.userId,
+    action: "update_gallery",
+    entityType: "site_settings",
+    entityId: null,
+    details: { photos: value.tiles.filter(Boolean).length },
+    accessToken,
+  });
+
+  refreshGalleryCache();
   return value;
 }

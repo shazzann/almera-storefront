@@ -240,3 +240,25 @@ export function resolveHero(products: Product[], hero: HeroSettings) {
   const image = chosen && hero.imageUrl && chosen.images.includes(hero.imageUrl) ? hero.imageUrl : cover?.images[0];
   return { cover, image };
 }
+
+export const GALLERY_SIZE = 6;
+
+export type GallerySettings = {
+  /** One entry per photo on the homepage. Null keeps the automatic photo for that spot. */
+  tiles: (string | null)[];
+};
+
+export const DEFAULT_GALLERY: GallerySettings = { tiles: Array<string | null>(GALLERY_SIZE).fill(null) };
+
+/** Always returns a full row, so the homepage grid never has gaps. */
+export function galleryTiles(productPhotos: (string | undefined)[], gallery: GallerySettings) {
+  const automatic = [
+    texture.goldThread,
+    productPhotos[0] ?? texture.zardozi,
+    texture.dupatta,
+    productPhotos[1] ?? texture.chikan,
+    texture.bloom,
+    productPhotos[2] ?? texture.fabricStack,
+  ];
+  return automatic.map((photo, i) => gallery.tiles[i] ?? photo);
+}

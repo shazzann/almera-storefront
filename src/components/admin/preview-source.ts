@@ -1,6 +1,6 @@
 "use client";
 
-import { categories as storeCategories, categoryGroups, DEFAULT_HERO, DENIM_SIZES, SIZES, type Product } from "@/lib/catalog";
+import { categories as storeCategories, categoryGroups, DEFAULT_GALLERY, DEFAULT_HERO, DENIM_SIZES, SIZES, type Product } from "@/lib/catalog";
 import type { AdminData, AdminSource, Order, OrderItem, ProductRow } from "./lib";
 
 /**
@@ -109,6 +109,7 @@ const orders: Order[] = [
 
 const data: AdminData = {
   hero: DEFAULT_HERO,
+  gallery: DEFAULT_GALLERY,
   products,
   orders,
   categories: storeCategories.map((c, i) => ({
@@ -210,6 +211,10 @@ export const previewSource: AdminSource = {
   async saveHero(hero) {
     await pause();
     data.hero = hero;
+  },
+  async saveGallery(gallery) {
+    await pause();
+    data.gallery = gallery;
   },
   async uploadImage(file) {
     await pause();

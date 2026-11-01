@@ -4,8 +4,9 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { WardrobeMark } from "@/components/brand";
-import { DEFAULT_HERO } from "@/lib/catalog";
+import { DEFAULT_GALLERY, DEFAULT_HERO } from "@/lib/catalog";
 import { BoxIcon, HomeIcon, MoreIcon, OrdersIcon, PercentIcon } from "./admin-icons";
+import { GalleryEditor } from "./gallery-editor";
 import { HeroEditor } from "./hero-editor";
 import { HomeScreen } from "./home-screen";
 import { ORDER_FILTERS, type AdminData, type AdminSource } from "./lib";
@@ -47,13 +48,13 @@ const TABS = [
   { view: "orders", label: "Orders", Icon: OrdersIcon, owns: ["orders", "order"] },
   { view: "products", label: "Products", Icon: BoxIcon, owns: ["products", "product"] },
   { view: "promos", label: "Promos", Icon: PercentIcon, owns: ["promos", "promo"] },
-  { view: "more", label: "More", Icon: MoreIcon, owns: ["more", "categories", "category", "category-order", "activity", "hero"] },
+  { view: "more", label: "More", Icon: MoreIcon, owns: ["more", "categories", "category", "category-order", "activity", "hero", "gallery"] },
 ] as const;
 
 /** Screens that fill the phone and keep their own action bar in place of the tabs. */
-const FULL_SCREEN = ["order", "product", "promo", "category", "category-order", "hero"];
+const FULL_SCREEN = ["order", "product", "promo", "category", "category-order", "hero", "gallery"];
 
-const EMPTY: AdminData = { categories: [], products: [], orders: [], coupons: [], auditLogs: [], hero: DEFAULT_HERO };
+const EMPTY: AdminData = { categories: [], products: [], orders: [], coupons: [], auditLogs: [], hero: DEFAULT_HERO, gallery: DEFAULT_GALLERY };
 
 export function AdminApp({ source }: { source: AdminSource }) {
   const params = useSearchParams();
@@ -280,6 +281,8 @@ function Screen({ view, id }: { view: string; id: string | null }) {
       return <ActivityScreen />;
     case "hero":
       return <HeroEditor />;
+    case "gallery":
+      return <GalleryEditor />;
     default:
       return <HomeScreen />;
   }

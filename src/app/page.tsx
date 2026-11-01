@@ -5,8 +5,8 @@ import { CategoryRail } from "@/components/category-rail";
 import { ArrowIcon, InstagramIcon, NeedleIcon } from "@/components/icons";
 import { ProductCard } from "@/components/product-card";
 import { WardrobeHero } from "@/components/wardrobe-hero";
-import { STITCHING_FEE, editorial, formatLKR, resolveHero, texture } from "@/lib/catalog";
-import { getAllCategories, getAllProducts, getHeroSettings } from "@/lib/catalog.server";
+import { STITCHING_FEE, editorial, formatLKR, galleryTiles, resolveHero, texture } from "@/lib/catalog";
+import { getAllCategories, getAllProducts, getGallerySettings, getHeroSettings } from "@/lib/catalog.server";
 
 const NOTES = [
   { quote: "The lawn was even softer than in the reel, and it reached Kandy in two days. Already ordered my Eid suit.", name: "Shifana", city: "Kandy" },
@@ -15,19 +15,12 @@ const NOTES = [
 ];
 
 export default async function Home() {
-  const [products, heroSettings, categoryList] = await Promise.all([getAllProducts(), getHeroSettings(), getAllCategories()]);
+  const [products, heroSettings, categoryList, gallery] = await Promise.all([getAllProducts(), getHeroSettings(), getAllCategories(), getGallerySettings()]);
   const hero = resolveHero(products, heroSettings);
   const newIn = products.filter((p) => p.tags.includes("new")).slice(0, 8);
   const loved = products.filter((p) => p.tags.includes("bestseller"));
   const lehengas = products.filter((p) => p.subcategory === "Lehengas").slice(0, 3);
-  const instaTiles = [
-    texture.goldThread,
-    products[0]?.images[0] ?? texture.zardozi,
-    texture.dupatta,
-    products[1]?.images[0] ?? texture.chikan,
-    texture.bloom,
-    products[2]?.images[0] ?? texture.fabricStack,
-  ];
+  const instaTiles = galleryTiles(products.map((p) => p.images[0]), gallery);
 
   return (
     <>

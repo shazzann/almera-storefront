@@ -1,4 +1,4 @@
-import { formatLKR, SIZES, type HeroSettings } from "@/lib/catalog";
+import { formatLKR, SIZES, type GallerySettings, type HeroSettings } from "@/lib/catalog";
 import { COD_MIN_DEPOSIT, getCodBalanceDue, requiresCodDeposit } from "@/lib/cod-deposit";
 
 export type OrderItem = {
@@ -113,6 +113,7 @@ export type AdminData = {
   coupons: Coupon[];
   auditLogs: AuditLog[];
   hero: HeroSettings;
+  gallery: GallerySettings;
 };
 
 export type ProductPayload = {
@@ -169,6 +170,7 @@ export type AdminSource = {
   saveCategory(payload: CategoryRow): Promise<unknown>;
   reorderCategories(slugs: string[]): Promise<unknown>;
   saveHero(payload: HeroSettings): Promise<unknown>;
+  saveGallery(payload: GallerySettings): Promise<unknown>;
   uploadImage(file: File, folder: string): Promise<string>;
   signOut(): Promise<void>;
 };
@@ -505,6 +507,7 @@ const ACTIVITY_VERB: Record<string, string> = {
   upsert_category: "Saved category",
   reorder_categories: "Changed category order",
   update_hero: "Updated homepage hero",
+  update_gallery: "Updated homepage gallery",
 };
 
 export function describeActivity(log: AuditLog) {

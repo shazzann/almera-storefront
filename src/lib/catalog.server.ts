@@ -1,11 +1,13 @@
 import "server-only";
 import { cacheLife, cacheTag } from "next/cache";
 import {
+  DEFAULT_GALLERY,
   DEFAULT_HERO,
   categories as defaultCategories,
   getCategory as defaultGetCategory,
   type Category,
   type CategorySlug,
+  type GallerySettings,
   type HeroSettings,
   type Product,
   type Stitching,
@@ -331,5 +333,26 @@ export async function getHeroSettings(): Promise<HeroSettings> {
     return { ...DEFAULT_HERO, ...(data.value as Partial<HeroSettings>) };
   } catch {
     return DEFAULT_HERO;
+  }
+}
+
+/** Reads the owner's homepage gallery. Falls back to the automatic photos if none is saved. */
+export async function getGallerySettings(): Promise<GallerySettings> {
+  "use cache";
+  cacheLife("hours");
+  cacheTag(CACHE_TAGS.gallery);
+
+  if (!isSupabaseConfigured()) return DEFAULT_GALLERY;
+
+  try {
+    const { data, error } = await getSupabaseAdmin()
+      .from("site_settings")
+      .select("value")
+      .eq("key", "gallery")
+      .maybeSingle();
+    if (error || !data) return DEFAULT_GALLERY;
+    return { ...DEFAULT_GALLERY, ...(data.value as Partial<GallerySettings>) };
+  } catch {
+    return DEFAULT_GALLERY;
   }
 }

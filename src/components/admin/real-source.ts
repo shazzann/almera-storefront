@@ -9,6 +9,7 @@ import {
   refundOrderAction,
   updateOrderStatusAction,
   upsertCategoryAction,
+  updateGalleryAction,
   updateHeroAction,
   upsertCouponAction,
   upsertProductAction,
@@ -86,6 +87,9 @@ export const realSource: AdminSource = {
   },
   async saveHero(payload) {
     return updateHeroAction(await token(), payload);
+  },
+  async saveGallery(payload) {
+    return updateGalleryAction(await token(), payload);
   },
   async uploadImage(file, folder) {
     const sb = getSupabaseBrowserClient();
