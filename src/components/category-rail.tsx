@@ -3,11 +3,11 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { categories } from "@/lib/catalog";
+import type { Category } from "@/lib/catalog";
 import { ArrowIcon } from "./icons";
 
 /** Swipeable row of category arches. Arrows appear on larger screens, where most people use a mouse. */
-export function CategoryRail({ heading }: { heading: ReactNode }) {
+export function CategoryRail({ heading, categories }: { heading: ReactNode; categories: Category[] }) {
   const rail = useRef<HTMLDivElement>(null);
   const [atStart, setAtStart] = useState(true);
   const [atEnd, setAtEnd] = useState(false);
@@ -51,7 +51,7 @@ export function CategoryRail({ heading }: { heading: ReactNode }) {
         {categories.map((c) => (
           <Link key={c.slug} href={`/shop/${c.slug}`} className="group w-[28vw] shrink-0 snap-start sm:w-56">
             <div className="arch relative aspect-[3/4] overflow-hidden bg-sage-soft">
-              <Image src={c.image} alt="" fill sizes="(min-width: 640px) 224px, 28vw" className="object-cover transition duration-[1.4s] ease-[var(--ease-out-soft)] group-hover:scale-105" />
+              {c.image && <Image src={c.image} alt="" fill sizes="(min-width: 640px) 224px, 28vw" className="object-cover transition duration-[1.4s] ease-[var(--ease-out-soft)] group-hover:scale-105" />}
             </div>
             <h3 className="display mt-3 text-center text-[1.15rem] leading-[1.05] group-hover:text-sage-deep sm:mt-4 sm:text-3xl">{c.name}</h3>
           </Link>

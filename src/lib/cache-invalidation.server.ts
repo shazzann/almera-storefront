@@ -1,11 +1,12 @@
 import "server-only";
-import { revalidateTag } from "next/cache";
+import { revalidateTag, updateTag } from "next/cache";
 
 export const CACHE_TAGS = {
   products: "catalog:products",
   product: (slug: string) => `catalog:product:${slug}`,
   category: (slug: string) => `catalog:category:${slug}`,
   categories: "catalog:categories",
+  hero: "site:hero",
 } as const;
 
 export function revalidateCatalogCache(slugs: string[] = [], categories: string[] = []) {
@@ -18,3 +19,12 @@ export function revalidateCatalogCache(slugs: string[] = [], categories: string[
   }
 }
 
+/** Called from the admin save, so the owner sees the new hero on the next page load. */
+export function refreshHeroCache() {
+  updateTag(CACHE_TAGS.hero);
+}
+
+/** Called from the admin saves, so category changes show on the next page load. */
+export function refreshCategoriesCache() {
+  updateTag(CACHE_TAGS.categories);
+}

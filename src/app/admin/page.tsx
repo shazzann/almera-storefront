@@ -2,13 +2,14 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
-import { AdminDashboard } from "@/components/admin-dashboard";
+import { AdminClient } from "@/components/admin/admin-client";
 import { isAdminEmail } from "@/lib/admin-config";
 import { getCurrentUser } from "@/lib/auth.server";
 
 export const metadata: Metadata = {
-  title: "Admin · Wardrobe & Orders",
+  title: "Admin",
   robots: { index: false, follow: false },
+  manifest: "/admin.webmanifest",
 };
 
 export const instant = false;
@@ -27,14 +28,8 @@ export default async function AdminPage() {
   }
 
   return (
-    <Suspense
-      fallback={
-        <div className="mx-auto max-w-7xl px-4 py-16 text-center text-sm text-ink/60">
-          Loading admin console…
-        </div>
-      }
-    >
-      <AdminDashboard />
+    <Suspense>
+      <AdminClient />
     </Suspense>
   );
 }

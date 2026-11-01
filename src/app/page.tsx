@@ -5,8 +5,8 @@ import { CategoryRail } from "@/components/category-rail";
 import { ArrowIcon, InstagramIcon, NeedleIcon } from "@/components/icons";
 import { ProductCard } from "@/components/product-card";
 import { WardrobeHero } from "@/components/wardrobe-hero";
-import { STITCHING_FEE, editorial, formatLKR, texture } from "@/lib/catalog";
-import { getAllProducts } from "@/lib/catalog.server";
+import { STITCHING_FEE, editorial, formatLKR, resolveHero, texture } from "@/lib/catalog";
+import { getAllCategories, getAllProducts, getHeroSettings } from "@/lib/catalog.server";
 
 const NOTES = [
   { quote: "The lawn was even softer than in the reel, and it reached Kandy in two days. Already ordered my Eid suit.", name: "Shifana", city: "Kandy" },
@@ -15,7 +15,8 @@ const NOTES = [
 ];
 
 export default async function Home() {
-  const products = await getAllProducts();
+  const [products, heroSettings, categoryList] = await Promise.all([getAllProducts(), getHeroSettings(), getAllCategories()]);
+  const hero = resolveHero(products, heroSettings);
   const newIn = products.filter((p) => p.tags.includes("new")).slice(0, 8);
   const loved = products.filter((p) => p.tags.includes("bestseller"));
   const lehengas = products.filter((p) => p.subcategory === "Lehengas").slice(0, 3);
@@ -30,11 +31,11 @@ export default async function Home() {
 
   return (
     <>
-      <WardrobeHero image={editorial.hero} cover={products[0]} />
+      <WardrobeHero image={hero.image ?? editorial.hero} cover={hero.cover} season={heroSettings.seasonText} />
 
       {/* Categories */}
       <section className="pb-8 sm:pb-12" aria-labelledby="drawers">
-        <CategoryRail heading={<SectionHead eyebrow="The wardrobe" title={<>shop by <em>drawer</em></>} id="drawers" />} />
+        <CategoryRail categories={categoryList} heading={<SectionHead eyebrow="The wardrobe" title={<>shop by <em>drawer</em></>} id="drawers" />} />
       </section>
 
       {/* New arrivals */}

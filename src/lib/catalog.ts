@@ -17,6 +17,8 @@ export type Category = {
   image: string;
   /** Tap-to-filter chips on the category page, matched against Product.subcategory. */
   subcategories?: string[];
+  /** Column in the desktop Shop menu, chosen by the owner. */
+  group?: string;
 };
 
 export type Product = {
@@ -139,6 +141,13 @@ export const categoryGroups: { title: string; slugs: CategorySlug[] }[] = [
   { title: "More", slugs: ["pakistani", "ready-to-wear", "western"] },
 ];
 
+/** Splits an ordered list into the Shop menu columns, keeping its order inside each column. */
+export function groupCategories(list: Category[]) {
+  const groupOf = (c: Category) =>
+    c.group ?? categoryGroups.find((g) => g.slugs.includes(c.slug))?.title ?? categoryGroups[0].title;
+  return categoryGroups.map((g) => ({ title: g.title, items: list.filter((c) => groupOf(c) === g.title) }));
+}
+
 export function getCategory(slug: string) {
   return categories.find((c) => c.slug === slug);
 }
@@ -190,3 +199,28 @@ export const DELIVERY = {
   standard: { label: "Island-wide courier", eta: "2–4 working days", fee: 450 },
 } as const;
 export type DeliveryMethod = keyof typeof DELIVERY;
+
+export type HeroSettings = {
+  /** The product on the cover. Null means the newest product. */
+  productSlug: string | null;
+  /** Which of that product's photos to show. Null means its first photo. */
+  imageUrl: string | null;
+  /** The small line above the headline. Empty hides it. */
+  seasonText: string;
+};
+
+export const HERO_SEASON_MAX = 48;
+
+export const DEFAULT_HERO: HeroSettings = {
+  productSlug: null,
+  imageUrl: null,
+  seasonText: "Eid & wedding season · 2026",
+};
+
+/** A hidden or removed cover falls back to the newest product, so the hero never breaks. */
+export function resolveHero(products: Product[], hero: HeroSettings) {
+  const chosen = products.find((p) => p.slug === hero.productSlug);
+  const cover = chosen ?? products[0];
+  const image = chosen && hero.imageUrl && chosen.images.includes(hero.imageUrl) ? hero.imageUrl : cover?.images[0];
+  return { cover, image };
+}

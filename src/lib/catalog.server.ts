@@ -1,10 +1,12 @@
 import "server-only";
 import { cacheLife, cacheTag } from "next/cache";
 import {
+  DEFAULT_HERO,
   categories as defaultCategories,
   getCategory as defaultGetCategory,
   type Category,
   type CategorySlug,
+  type HeroSettings,
   type Product,
   type Stitching,
 } from "@/lib/catalog";
@@ -302,8 +304,30 @@ export async function getAllCategories(): Promise<Category[]> {
         Array.isArray(row.subcategories) && row.subcategories.length > 0
           ? row.subcategories
           : undefined,
+      group: row.nav_group ?? undefined,
     }));
   } catch {
     return defaultCategories;
+  }
+}
+
+/** Reads the owner's homepage hero. Falls back to the defaults if none is saved. */
+export async function getHeroSettings(): Promise<HeroSettings> {
+  "use cache";
+  cacheLife("hours");
+  cacheTag(CACHE_TAGS.hero);
+
+  if (!isSupabaseConfigured()) return DEFAULT_HERO;
+
+  try {
+    const { data, error } = await getSupabaseAdmin()
+      .from("site_settings")
+      .select("value")
+      .eq("key", "hero")
+      .maybeSingle();
+    if (error || !data) return DEFAULT_HERO;
+    return { ...DEFAULT_HERO, ...(data.value as Partial<HeroSettings>) };
+  } catch {
+    return DEFAULT_HERO;
   }
 }

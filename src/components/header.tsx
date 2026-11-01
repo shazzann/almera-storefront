@@ -7,9 +7,8 @@ import { useCallback, useEffect, useState } from "react";
 import { searchProductsAction } from "@/actions/catalog";
 import {
   categories as defaultCategories,
-  categoryGroups,
+  groupCategories,
   formatLKR,
-  getCategory,
   startingPrice,
   type Category,
   type Product,
@@ -113,10 +112,8 @@ export function Header({
     return () => window.removeEventListener("keydown", onKey);
   }, [shopOpen]);
 
+  if (pathname.startsWith("/admin")) return null;
   if (pathname === "/checkout") return <CheckoutHeader />;
-
-  const findCatName = (slug: string) =>
-    categoryList.find((c) => c.slug === slug)?.name ?? getCategory(slug)?.name ?? slug;
 
   return (
     <>
@@ -171,18 +168,18 @@ export function Header({
                   }`}
                 >
                   <div className="mx-auto grid max-w-7xl grid-cols-3 gap-8 px-8 py-9">
-                    {categoryGroups.map((g) => (
+                    {groupCategories(categoryList).map((g) => (
                       <div key={g.title}>
                         <p className="eyebrow mb-3 text-gold-deep">{g.title}</p>
                         <ul>
-                          {g.slugs.map((slug) => (
-                            <li key={slug}>
+                          {g.items.map((c) => (
+                            <li key={c.slug}>
                               <Link
-                                href={`/shop/${slug}`}
+                                href={`/shop/${c.slug}`}
                                 onNavigate={() => setShopOpen(false)}
                                 className="display block py-1.5 text-[1.7rem] hover:text-sage-deep"
                               >
-                                {findCatName(slug)}
+                                {c.name}
                               </Link>
                             </li>
                           ))}

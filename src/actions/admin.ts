@@ -2,10 +2,12 @@
 
 import { z } from "zod";
 import { assertAdmin, logAuditEvent } from "@/lib/admin-auth.server";
-import { revalidateCatalogCache } from "@/lib/cache-invalidation.server";
+import { refreshCategoriesCache, refreshHeroCache, revalidateCatalogCache } from "@/lib/cache-invalidation.server";
 import {
   categories as frontendCategories,
   categoryGroups,
+  DEFAULT_HERO,
+  HERO_SEASON_MAX,
   type CategorySlug,
 } from "@/lib/catalog";
 import { restoreStock, type StockItem } from "@/lib/stock-helpers.server";
@@ -56,14 +58,15 @@ export async function getAdminDashboardDataAction(accessToken?: string | null) {
   const frontendCategoryRows = buildFrontendCategoryRows();
   const supabase = getSupabaseAdmin(accessToken);
 
-  // Sync the storefront categories & subcategories into public.categories for dropdown selection
-  await supabase.from("categories").upsert(frontendCategoryRows, { onConflict: "slug" });
+  // Seed any missing storefront categories, without overwriting edits made in the console
+  await supabase
+    .from("categories")
+    .upsert(frontendCategoryRows, { onConflict: "slug", ignoreDuplicates: true });
 
-  const [categoriesRes, productsRes, ordersRes, couponsRes, auditRes] = await Promise.all([
+  const [categoriesRes, productsRes, ordersRes, couponsRes, auditRes, heroRes] = await Promise.all([
     supabase
       .from("categories")
       .select("*")
-      .eq("is_active", true)
       .order("sort_order", { ascending: true }),
     supabase
       .from("products")
@@ -76,6 +79,7 @@ export async function getAdminDashboardDataAction(accessToken?: string | null) {
       .limit(100),
     supabase.from("coupons").select("*").order("created_at", { ascending: false }),
     supabase.from("audit_log").select("*").order("created_at", { ascending: false }).limit(50),
+    supabase.from("site_settings").select("value").eq("key", "hero").maybeSingle(),
   ]);
 
   return {
@@ -88,6 +92,7 @@ export async function getAdminDashboardDataAction(accessToken?: string | null) {
     orders: ordersRes.data ?? [],
     coupons: couponsRes.data ?? [],
     auditLogs: auditRes.data ?? [],
+    hero: { ...DEFAULT_HERO, ...(heroRes.data?.value ?? {}) },
   };
 }
 
@@ -667,5 +672,72 @@ export async function upsertCategoryAction(
   });
 
   revalidateCatalogCache([], [data.slug]);
+  refreshCategoriesCache();
   return data;
+}
+
+export async function reorderCategoriesAction(
+  accessToken: string | null | undefined,
+  rawSlugs: string[],
+) {
+  const admin = await assertAdmin(accessToken);
+  const slugs = z.array(z.string().trim().min(2).max(50)).min(1).max(200).parse(rawSlugs);
+  const supabase = getSupabaseAdmin(accessToken);
+
+  const results = await Promise.all(
+    slugs.map((slug, i) => supabase.from("categories").update({ sort_order: i + 1 }).eq("slug", slug)),
+  );
+  const failed = results.find((r) => r.error);
+  if (failed?.error) throw new Error(failed.error.message);
+
+  await logAuditEvent({
+    userId: admin.userId,
+    action: "reorder_categories",
+    entityType: "category",
+    entityId: null,
+    details: { order: slugs },
+    accessToken,
+  });
+
+  refreshCategoriesCache();
+  return slugs;
+}
+
+const heroInputSchema = z.object({
+  productSlug: z.string().trim().min(1).max(200).nullable(),
+  imageUrl: z.string().trim().url().nullable(),
+  seasonText: z.string().trim().max(HERO_SEASON_MAX),
+});
+
+export async function updateHeroAction(
+  accessToken: string | null | undefined,
+  rawPayload: z.input<typeof heroInputSchema>,
+) {
+  const admin = await assertAdmin(accessToken);
+  const value = heroInputSchema.parse(rawPayload);
+  const supabase = getSupabaseAdmin(accessToken);
+
+  const { error } = await supabase
+    .from("site_settings")
+    .upsert({ key: "hero", value, updated_at: new Date().toISOString() }, { onConflict: "key" });
+
+  if (error) {
+    throw new Error(
+      error.code === "PGRST205" || error.code === "42P01"
+        ? "Homepage settings aren't set up yet. Run the latest database update, then try again."
+        : error.message,
+    );
+  }
+
+  await logAuditEvent({
+    userId: admin.userId,
+    action: "update_hero",
+    entityType: "site_settings",
+    entityId: null,
+    details: { slug: value.productSlug ?? "newest product", seasonText: value.seasonText },
+    accessToken,
+  });
+
+  refreshHeroCache();
+  return value;
 }

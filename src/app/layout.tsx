@@ -3,6 +3,7 @@ import { Bodoni_Moda, Hanken_Grotesk } from "next/font/google";
 import { CartDrawer } from "@/components/cart-drawer";
 import { Footer } from "@/components/footer";
 import { Header } from "@/components/header";
+import { StoreOnly } from "@/components/store-only";
 import { getAllCategories } from "@/lib/catalog.server";
 import "./globals.css";
 
@@ -75,8 +76,10 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
         <main id="main" className="flex-1">
           {children}
         </main>
-        <Footer categoryList={categoryList} />
-        <CartDrawer />
+        <StoreOnly>
+          <Footer categoryList={categoryList} />
+          <CartDrawer />
+        </StoreOnly>
       </body>
     </html>
   );

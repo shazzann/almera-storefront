@@ -28,12 +28,12 @@ function Door({ side }: { side: "left" | "right" }) {
   );
 }
 
-export function WardrobeHero({ image, cover }: { image: string; cover?: Product }) {
+export function WardrobeHero({ image, cover, season }: { image: string; cover?: Product; season: string }) {
   return (
     <section className="relative overflow-hidden">
       <div className="mx-auto grid max-w-7xl items-center gap-8 px-4 pt-6 pb-14 sm:px-8 lg:grid-cols-[1.05fr_1fr] lg:gap-16 lg:pt-10 lg:pb-24">
         <div className="order-2 lg:order-1">
-          <p className="eyebrow animate-rise text-gold-deep" style={{ animationDelay: "0.80s" }}>Eid &amp; wedding season · 2026</p>
+          {season && <p className="eyebrow animate-rise text-gold-deep" style={{ animationDelay: "0.80s" }}>{season}</p>}
           <h1 className="display mt-4 animate-rise text-[3.4rem] text-ink sm:text-7xl lg:text-[6.2rem] xl:text-[6.8rem]" style={{ animationDelay: "0.95s" }}>
             the wardrobe <br /><em className="text-sage-deep">is open</em>
           </h1>
@@ -53,7 +53,7 @@ export function WardrobeHero({ image, cover }: { image: string; cover?: Product 
             <div aria-hidden className="arch absolute inset-0 border border-gold/60" />
             <div className="arch relative aspect-[4/5] overflow-hidden bg-sage [perspective:1600px]">
               <Image
-                src={cover?.images[0] || image}
+                src={image}
                 alt={cover?.name ?? "Model in a jade tiered lehenga seated beneath an arched window"}
                 fill
                 preload
@@ -70,7 +70,6 @@ export function WardrobeHero({ image, cover }: { image: string; cover?: Product 
               className="group mt-3 flex items-center justify-between gap-4 border-b border-line pb-3 text-sm"
             >
               <span>
-                <span className="text-ink/55">On the cover · </span>
                 {cover.name}
               </span>
               <span className="flex items-center gap-2 font-semibold">

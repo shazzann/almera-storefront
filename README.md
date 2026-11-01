@@ -38,3 +38,9 @@ Open http://localhost:3000. For the client meeting, open it on a phone or use th
 - **Products, prices, stock, delivery fees**, the free-delivery threshold, the stitching fee and the size chart are all sample data in `src/lib/catalog.ts` and `src/components/size-guide.tsx`.
 - **Client reviews** on the homepage are written examples. Use real feedback from their Instagram highlights.
 - **Checkout** doesn't send orders anywhere yet. It saves the order in the browser to show the confirmation page. The backend, admin and payments are the development phase.
+
+## Admin console
+
+The owner manages the shop from `/admin`, built for phones first: orders, products, stock, promos and categories. It can be added to the home screen like an app.
+
+To try it without signing in or touching real data, open `/admin-preview` in development. It runs on sample data, and returns "not found" in production.
