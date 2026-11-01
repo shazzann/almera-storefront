@@ -34,8 +34,8 @@ const order = (number: string, status: string, method: string, total: number, da
   status,
   payment_method: method,
   total,
-  subtotal: total - 450,
-  delivery_fee: 450,
+  subtotal: total - 550,
+  delivery_fee: 550,
   discount_amount: 0,
   coupon_code: null,
   advance_deposit: 0,
@@ -48,7 +48,7 @@ const order = (number: string, status: string, method: string, total: number, da
   district: "Colombo",
   postal_code: "00300",
   notes: null,
-  order_items: [item(`${number}-1`, "Lilac chikan lawn — Stitched (Size M)", texture.chikan, total - 450)],
+  order_items: [item(`${number}-1`, "Lilac chikan lawn — Stitched (Size M)", texture.chikan, total - 550)],
   ...extra,
 });
 

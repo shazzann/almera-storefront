@@ -697,8 +697,8 @@ export function CheckoutForm() {
                   checked={method === m}
                   onChange={() => setMethod(m)}
                   title={d.label}
-                  sub={d.eta}
-                  right={free ? "Free" : formatLKR(d.fee)}
+                  sub={`${d.eta}. ${formatLKR(d.firstPiece)} for the first piece, ${formatLKR(d.extraPiece)} for each extra piece.`}
+                  right={free ? "Free" : formatLKR(t.baseDelivery)}
                 />
               );
             })}

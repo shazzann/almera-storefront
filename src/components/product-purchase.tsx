@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
+import { createPortal } from "react-dom";
 import {
   SIZES,
   STITCHING_FEE,
@@ -16,7 +17,10 @@ import { CheckIcon, InstagramIcon } from "./icons";
 import { Sheet } from "./sheet";
 import { SizeGuideTable } from "./size-guide";
 
+const subscribeToNothing = () => () => {};
+
 export function ProductPurchase({ product: p }: { product: Product }) {
+  const inBrowser = useSyncExternalStore(subscribeToNothing, () => true, () => false);
   const options = stitchingOptions(p);
   const initialOption =
     options.find((o) => getOptionStock(p, o) > 0) ?? options[0] ?? "stitched";
@@ -160,7 +164,7 @@ export function ProductPurchase({ product: p }: { product: Product }) {
               Size guide
             </button>
           </div>
-          <div className="grid grid-cols-5 gap-2">
+          <div className={`grid gap-2 ${(p.sizes ?? SIZES).length === 4 ? "grid-cols-4" : "grid-cols-5"}`}>
             {(p.sizes ?? SIZES).map((s) => {
               const sStock = getOptionStock(p, "stitched", s);
               const sOut = sStock <= 0;
@@ -252,11 +256,16 @@ export function ProductPurchase({ product: p }: { product: Product }) {
         </div>
       )}
 
-      <Sheet open={guideOpen} onClose={closeGuide} side="bottom" title="size guide">
-        <div className="px-5 py-6">
-          <SizeGuideTable kind={isDenimChart ? "denim" : "standard"} />
-        </div>
-      </Sheet>
+      {/* The sticky column on large screens sits below the header, so the guide opens from the body. */}
+      {inBrowser &&
+        createPortal(
+          <Sheet open={guideOpen} onClose={closeGuide} side="bottom" title="size guide">
+            <div className="px-5 py-6">
+              <SizeGuideTable kind={isDenimChart ? "denim" : "standard"} />
+            </div>
+          </Sheet>,
+          document.body,
+        )}
     </div>
   );
 }

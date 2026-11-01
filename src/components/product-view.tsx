@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { getCategory, nameWithColour, stitchingOptions, type Product } from "@/lib/catalog";
+import { DELIVERY, FREE_DELIVERY_FROM, formatLKR, getCategory, nameWithColour, stitchingOptions, type Product } from "@/lib/catalog";
 import { ColourPicker } from "./colour-picker";
 import { ProductGallery } from "./product-gallery";
 import { ProductPurchase } from "./product-purchase";
@@ -82,7 +82,7 @@ export function ProductView({ product, colours }: { product: Product; colours: P
               {p.fabric}. {p.care ?? "Dry clean for the first wash. After that, hand wash cold, separately, and dry in the shade. Iron on the reverse side."}
             </Detail>
             <Detail title="Delivery">
-              Island-wide courier in 2–4 working days. Stitched orders take 5–7 days before dispatch. Free island-wide delivery on orders over Rs. 25,000.
+              Island-wide courier in 2–4 working days. Stitched orders take 5–7 days before dispatch. Delivery is {formatLKR(DELIVERY.standard.firstPiece)} for the first piece and {formatLKR(DELIVERY.standard.extraPiece)} for each extra piece. Free island-wide delivery on orders over {formatLKR(FREE_DELIVERY_FROM)}.
             </Detail>
             <Detail title="Order policy">
               All sales are final: we don’t offer exchanges, returns or refunds. Colours may vary slightly between screens. Check the size guide or message us before ordering.{" "}

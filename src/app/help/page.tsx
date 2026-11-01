@@ -72,7 +72,8 @@ export default function HelpPage() {
             <div key={d.label} className="rounded-2xl bg-ivory p-5">
               <p className="font-semibold">{d.label}</p>
               <p className="mt-1 text-sm text-ink/65">{d.eta}</p>
-              <p className="mt-3 text-lg font-semibold">{formatLKR(d.fee)}</p>
+              <p className="mt-3 text-lg font-semibold">{formatLKR(d.firstPiece)} for the first piece</p>
+              <p className="mt-0.5 text-sm text-ink/65">Plus {formatLKR(d.extraPiece)} for each extra piece</p>
             </div>
           ))}
         </div>

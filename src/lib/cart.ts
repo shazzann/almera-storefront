@@ -3,8 +3,8 @@
 import { useSyncExternalStore } from "react";
 import { validateCouponAction, type CouponResult } from "@/actions/orders";
 import {
-  DELIVERY,
   FREE_DELIVERY_FROM,
+  deliveryFee,
   getOptionStock,
   type DeliveryMethod,
   nameWithColour,
@@ -253,7 +253,7 @@ export function totals(
   const freeDeliveryByThreshold = subtotal >= FREE_DELIVERY_FROM;
   const isFreeDeliveryCoupon = appliedCoupon?.discountType === "free_delivery";
   const freeDelivery = freeDeliveryByThreshold || isFreeDeliveryCoupon;
-  const baseDelivery = lines.length === 0 || freeDeliveryByThreshold ? 0 : DELIVERY[method].fee;
+  const baseDelivery = freeDeliveryByThreshold ? 0 : deliveryFee(count, method);
   const discountAmount = appliedCoupon
     ? isFreeDeliveryCoupon
       ? baseDelivery

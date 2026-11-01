@@ -109,7 +109,7 @@ export default async function Home() {
               image={texture.chikan}
               label="Stitched"
               title="made to your size by our tailors"
-              points={["Standard sizes XS–XL, see the size guide", `Lawn stitching adds ${formatLKR(STITCHING_FEE)}`, "Stitched and pressed in 5–7 days"]}
+              points={["Standard sizes M–XXL, see the size guide", `Lawn stitching adds ${formatLKR(STITCHING_FEE)}`, "Stitched and pressed in 5–7 days"]}
               href="/shop/ready-to-wear"
               cta="Shop ready to wear"
               accent

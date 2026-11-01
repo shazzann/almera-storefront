@@ -3,10 +3,11 @@
 import { headers } from "next/headers";
 import { z } from "zod";
 import {
-  DELIVERY,
   DISTRICTS,
   FREE_DELIVERY_FROM,
+  SIZES,
   STITCHING_FEE,
+  deliveryFee as deliveryFeeFor,
   nameWithColour,
 } from "@/lib/catalog";
 import { revalidateCatalogCache } from "@/lib/cache-invalidation.server";
@@ -124,7 +125,8 @@ export async function validateCouponAction(input: {
 
   const verified = await resolveAuthoritativeLines(input.items);
   const subtotal = verified.reduce((s, l) => s + l.unit_price * l.quantity, 0);
-  const deliveryFee = subtotal >= FREE_DELIVERY_FROM ? 0 : DELIVERY.standard.fee;
+  const pieces = verified.reduce((n, l) => n + l.quantity, 0);
+  const deliveryFee = subtotal >= FREE_DELIVERY_FROM ? 0 : deliveryFeeFor(pieces);
 
   const result = await validateAndCalculateCoupon({
     code: normalizedCode,
@@ -234,7 +236,7 @@ async function resolveAuthoritativeLines(items: z.infer<typeof orderItemInputSch
       isOnSale =
         product.was_price_stitched != null &&
         Number(product.was_price_stitched) > unitPrice;
-      const allowedSizes: string[] = product.sizes ?? ["XS", "S", "M", "L", "XL"];
+      const allowedSizes: string[] = product.sizes ?? [...SIZES];
       if (!item.size || !allowedSizes.includes(item.size)) {
         throw new Error(`Please select a valid size for "${product.name}".`);
       }
@@ -334,7 +336,8 @@ export async function placeOrderAction(rawInput: PlaceOrderInput) {
 
   const verifiedLines = await resolveAuthoritativeLines(data.items);
   const subtotal = verifiedLines.reduce((sum, l) => sum + l.unit_price * l.quantity, 0);
-  const deliveryFee = subtotal >= FREE_DELIVERY_FROM ? 0 : DELIVERY.standard.fee;
+  const pieces = verifiedLines.reduce((n, l) => n + l.quantity, 0);
+  const deliveryFee = subtotal >= FREE_DELIVERY_FROM ? 0 : deliveryFeeFor(pieces);
 
   let discountAmount = 0;
   const normalizedCoupon = data.coupon_code?.trim().toUpperCase() || null;

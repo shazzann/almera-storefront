@@ -1,6 +1,6 @@
 "use client";
 
-import { categories as storeCategories, categoryGroups, DEFAULT_GALLERY, DEFAULT_HERO, DENIM_SIZES, SIZES, type Product } from "@/lib/catalog";
+import { categories as storeCategories, categoryGroups, DEFAULT_GALLERY, DEFAULT_HERO, DENIM_SIZES, SIZES, deliveryFee, type Product } from "@/lib/catalog";
 import type { AdminData, AdminSource, Order, OrderItem, ProductRow } from "./lib";
 
 /**
@@ -74,7 +74,7 @@ const item = (slugIndex: number, qty = 1, size = "M"): OrderItem => {
 
 function order(n: number, status: string, h: number, name: string, phone: string, city: string, district: string, items: OrderItem[], extra: Partial<Order> = {}): Order {
   const subtotal = items.reduce((sum, it) => sum + Number(it.unit_price) * Number(it.quantity), 0);
-  const delivery = subtotal >= 25000 ? 0 : 450;
+  const delivery = subtotal >= 25000 ? 0 : deliveryFee(items.reduce((n, it) => n + Number(it.quantity), 0));
   return {
     id: `o${n}`,
     order_number: `ALM-${10240 + n}`,

@@ -10,6 +10,7 @@ import {
   DEFAULT_HERO,
   GALLERY_SIZE,
   HERO_SEASON_MAX,
+  SIZES,
   type CategorySlug,
 } from "@/lib/catalog";
 import { restoreStock, type StockItem } from "@/lib/stock-helpers.server";
@@ -152,7 +153,7 @@ export async function upsertProductAction(
   const colourGroup = payload.colour_of ? await resolveColourGroup(supabase, payload.colour_of) : null;
 
   const normalizedSizes =
-    payload.sizes.length > 0 ? payload.sizes : ["XS", "S", "M", "L", "XL"];
+    payload.sizes.length > 0 ? payload.sizes : [...SIZES];
 
   const unstitchedQty =
     payload.price_unstitched != null

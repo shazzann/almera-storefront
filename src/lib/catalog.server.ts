@@ -3,6 +3,7 @@ import { cacheLife, cacheTag } from "next/cache";
 import {
   DEFAULT_GALLERY,
   DEFAULT_HERO,
+  SIZES,
   categories as defaultCategories,
   getCategory as defaultGetCategory,
   type Category,
@@ -68,7 +69,7 @@ export function mapDbRowToProduct(row: DbProductRow): Product {
     categories.push("ready-to-wear");
   }
 
-  const sizes = row.sizes && row.sizes.length > 0 ? row.sizes : ["XS", "S", "M", "L", "XL"];
+  const sizes = row.sizes && row.sizes.length > 0 ? row.sizes : [...SIZES];
   const activeVariants = (row.product_variants ?? []).filter((v) => v.is_active !== false);
 
   let unstitchedStock: number | undefined;

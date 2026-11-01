@@ -479,7 +479,7 @@ function EditorForm({ existing, colourSource, onDeleting }: { existing?: Product
                     </Field>
                   </div>
                   <div className="grid grid-cols-2 gap-1 rounded-xl bg-mist p-1" role="group" aria-label="Size type">
-                    {[{ label: "XS to XL", sizes: [...SIZES] as string[] }, { label: "Denim 26 to 34", sizes: [...DENIM_SIZES] as string[] }].map((o) => {
+                    {[{ label: "M to XXL", sizes: [...SIZES] as string[] }, { label: "Denim 26 to 34", sizes: [...DENIM_SIZES] as string[] }].map((o) => {
                       const on = form.sizes[0] === o.sizes[0];
                       return (
                         <button key={o.label} type="button" onClick={() => set("sizes", o.sizes)} aria-pressed={on} className={`min-h-11 rounded-lg text-[0.9rem] font-medium ${on ? "bg-ivory shadow-sm" : "text-ink/65"}`}>

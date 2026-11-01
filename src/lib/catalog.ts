@@ -42,7 +42,7 @@ export type Product = {
   /** Stock count per stitched size (e.g. { XS: 2, S: 3, M: 0, L: 1, XL: 2 } or { "26": 2, "28": 4, ... }). */
   sizeStock?: Record<string, number>;
   tags: ("new" | "bestseller" | "festive")[];
-  /** Overrides the standard XS–XL sizes, and switches the size guide to the denim chart. */
+  /** Overrides the standard M–XXL sizes, and switches the size guide to the denim chart. */
   sizes?: readonly string[];
   care?: string;
   /** Shared by the listings that are colours of one item. */
@@ -67,7 +67,7 @@ export const editorial = {
   bridal: u("1746372283841-dbb3838f9935"),
 };
 
-export const SIZES = ["XS", "S", "M", "L", "XL"] as const;
+export const SIZES = ["M", "L", "XL", "XXL"] as const;
 export const DENIM_SIZES = ["26", "28", "30", "32", "34"] as const;
 export type Size = string;
 
@@ -212,9 +212,16 @@ export const DISTRICTS = [
 ];
 
 export const DELIVERY = {
-  standard: { label: "Island-wide courier", eta: "2–4 working days", fee: 450 },
+  standard: { label: "Island-wide courier", eta: "2–4 working days", firstPiece: 550, extraPiece: 100 },
 } as const;
 export type DeliveryMethod = keyof typeof DELIVERY;
+
+/** The first piece in an order costs the full fee, and each piece after it adds a smaller one. */
+export function deliveryFee(pieces: number, method: DeliveryMethod = "standard") {
+  if (pieces <= 0) return 0;
+  const { firstPiece, extraPiece } = DELIVERY[method];
+  return firstPiece + extraPiece * (pieces - 1);
+}
 
 export type HeroSettings = {
   /** The product on the cover. Null means the newest product. */
