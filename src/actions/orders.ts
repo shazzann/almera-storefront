@@ -7,6 +7,7 @@ import {
   DISTRICTS,
   FREE_DELIVERY_FROM,
   STITCHING_FEE,
+  nameWithColour,
 } from "@/lib/catalog";
 import { revalidateCatalogCache } from "@/lib/cache-invalidation.server";
 import { requiresCodDeposit } from "@/lib/cod-deposit";
@@ -261,10 +262,11 @@ async function resolveAuthoritativeLines(items: z.infer<typeof orderItemInputSch
       categories.push("ready-to-wear");
     }
 
+    const lineName = nameWithColour({ name: product.name, colour: product.colour ?? "", colourGroup: product.colour_group });
     const displayLabel =
       item.stitching === "stitched"
-        ? `${product.name} — Stitched (Size ${normalizedSize})`
-        : `${product.name} — Unstitched`;
+        ? `${lineName} — Stitched (Size ${normalizedSize})`
+        : `${lineName} — Unstitched`;
 
     verifiedLines.push({
       product_id: product.id,

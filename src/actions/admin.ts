@@ -53,6 +53,24 @@ function buildFrontendCategoryRows() {
   });
 }
 
+const COLOURS_NOT_SET_UP = "Colours aren't set up yet. Run the latest database update, then try again.";
+
+/** Only touches the group column, so linking a colour can't overwrite the first product's stock. */
+async function resolveColourGroup(supabase: ReturnType<typeof getSupabaseAdmin>, slug: string) {
+  const { data: source, error } = await supabase
+    .from("products")
+    .select("id, colour_group")
+    .eq("slug", slug)
+    .single();
+  if (error) throw new Error(error.code === "42703" ? COLOURS_NOT_SET_UP : error.message);
+  if (source.colour_group) return source.colour_group as string;
+
+  const group = crypto.randomUUID();
+  const { error: linkError } = await supabase.from("products").update({ colour_group: group }).eq("id", source.id);
+  if (linkError) throw new Error(linkError.message);
+  return group;
+}
+
 export async function getAdminDashboardDataAction(accessToken?: string | null) {
   await assertAdmin(accessToken);
   const frontendCategoryRows = buildFrontendCategoryRows();
@@ -121,10 +139,13 @@ export async function upsertProductAction(
     size_stocks?: Record<string, number>;
     is_featured: boolean;
     is_active: boolean;
+    /** Slug of the product this one is another colour of. */
+    colour_of?: string | null;
   },
 ) {
   const admin = await assertAdmin(accessToken);
   const supabase = getSupabaseAdmin(accessToken);
+  const colourGroup = payload.colour_of ? await resolveColourGroup(supabase, payload.colour_of) : null;
 
   const normalizedSizes =
     payload.sizes.length > 0 ? payload.sizes : ["XS", "S", "M", "L", "XL"];
@@ -170,6 +191,7 @@ export async function upsertProductAction(
     is_featured: payload.is_featured,
     is_active: payload.is_active,
     updated_at: new Date().toISOString(),
+    ...(colourGroup ? { colour_group: colourGroup } : {}),
     ...(payload.id ? { id: payload.id } : {}),
   };
 

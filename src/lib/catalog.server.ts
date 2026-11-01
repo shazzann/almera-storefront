@@ -45,6 +45,7 @@ export type DbProductRow = {
   stock?: number | string | null;
   is_featured?: boolean | null;
   is_active?: boolean | null;
+  colour_group?: string | null;
   created_at?: string;
   product_variants?: DbProductVariantRow[] | null;
 };
@@ -103,6 +104,7 @@ export function mapDbRowToProduct(row: DbProductRow): Product {
     tags: (row.tags ?? []) as ("new" | "bestseller" | "festive")[],
     sizes,
     care: row.care ?? undefined,
+    colourGroup: row.colour_group ?? undefined,
   };
 }
 

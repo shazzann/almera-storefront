@@ -6,7 +6,7 @@ import { ChevronIcon, PlusIcon } from "@/components/icons";
 import { formatLKR } from "@/lib/catalog";
 import { useAdmin } from "./admin-app";
 import { EyeOffIcon } from "./admin-icons";
-import { fromPrice, num, productInCategory, productPayload, stockRows, stockState, type ProductRow } from "./lib";
+import { colourGroupOf, fromPrice, num, productInCategory, productPayload, stockRows, stockState, type ProductRow } from "./lib";
 import { AdminSheet, Chip, EmptyState, SearchBox, StockRow, SwitchRow, TopBar } from "./ui";
 
 const FILTERS = [
@@ -123,7 +123,8 @@ export function ProductsScreen() {
 }
 
 function ProductRowCard({ product: p, onStock }: { product: ProductRow; onStock: () => void }) {
-  const { go } = useAdmin();
+  const { data, go } = useAdmin();
+  const colourCount = colourGroupOf(p, data.products).length;
   const state = stockState(p);
   const hidden = p.is_active === false;
   const editId = p.id ?? p.slug;
@@ -142,6 +143,7 @@ function ProductRowCard({ product: p, onStock }: { product: ProductRow; onStock:
           <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
             <span className="text-[0.92rem] font-semibold tabular-nums">{formatLKR(fromPrice(p))}</span>
             {p.is_featured && <span className="rounded-full bg-sage-soft px-2 py-0.5 text-[0.72rem] font-medium text-sage-deep">Show first</span>}
+            {colourCount > 1 && <span className="rounded-full border border-line px-2 py-0.5 text-[0.72rem] font-medium text-ink/70">{colourCount} colours</span>}
           </span>
           {hidden && <span className="mt-1 block text-[0.82rem] text-ink/60">Hidden from store</span>}
         </span>

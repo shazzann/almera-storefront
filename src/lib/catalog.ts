@@ -45,6 +45,8 @@ export type Product = {
   /** Overrides the standard XS–XL sizes, and switches the size guide to the denim chart. */
   sizes?: readonly string[];
   care?: string;
+  /** Shared by the listings that are colours of one item. */
+  colourGroup?: string;
 };
 
 const u = (id: string) => `https://images.unsplash.com/photo-${id}`;
@@ -146,6 +148,20 @@ export function groupCategories(list: Category[]) {
   const groupOf = (c: Category) =>
     c.group ?? categoryGroups.find((g) => g.slugs.includes(c.slug))?.title ?? categoryGroups[0].title;
   return categoryGroups.map((g) => ({ title: g.title, items: list.filter((c) => groupOf(c) === g.title) }));
+}
+
+/** Tells linked colours apart in the bag and on orders, unless the name already says the colour. */
+export function nameWithColour(p: { name: string; colour: string; colourGroup?: string | null }) {
+  const colour = p.colour.trim();
+  if (!p.colourGroup || !colour || p.name.toLowerCase().includes(colour.toLowerCase())) return p.name;
+  return `${p.name} (${colour})`;
+}
+
+/** The other listings of this item, in an order that stays the same from page to page. */
+export function colourOptions(product: Product, all: Product[]) {
+  if (!product.colourGroup) return [];
+  const options = all.filter((p) => p.colourGroup === product.colourGroup);
+  return options.length > 1 ? options.sort((a, b) => a.colour.localeCompare(b.colour)) : [];
 }
 
 export function getCategory(slug: string) {

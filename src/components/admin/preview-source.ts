@@ -145,11 +145,14 @@ export const previewSource: AdminSource = {
     await pause();
     return clone();
   },
-  async saveProduct(p) {
+  async saveProduct({ colour_of, ...p }) {
     await pause();
+    const source = data.products.find((x) => x.slug === colour_of);
+    if (source) source.colour_group ??= `group-${source.slug}`;
     const row: ProductRow = {
       ...p,
       id: p.id ?? `p${Date.now()}`,
+      colour_group: source?.colour_group ?? data.products.find((x) => x.slug === p.slug)?.colour_group,
       product_variants: [
         ...(p.unstitched_stock != null ? [{ stitching: "unstitched", size: "-", stock: p.unstitched_stock }] : []),
         ...Object.entries(p.size_stocks ?? {}).map(([size, stock]) => ({ stitching: "stitched", size, stock })),

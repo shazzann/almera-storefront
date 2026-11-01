@@ -2,10 +2,11 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
+import { ColourPicker } from "@/components/colour-picker";
 import { ProductCard } from "@/components/product-card";
 import { ProductGallery } from "@/components/product-gallery";
 import { ProductPurchase } from "@/components/product-purchase";
-import { getCategory, startingPrice, stitchingOptions } from "@/lib/catalog";
+import { colourOptions, getCategory, nameWithColour, startingPrice, stitchingOptions } from "@/lib/catalog";
 import { getAllProducts, getProductBySlug } from "@/lib/catalog.server";
 
 export async function generateStaticParams() {
@@ -20,7 +21,7 @@ export async function generateMetadata({ params }: PageProps<"/product/[slug]">)
   const p = await getProductBySlug((await params).slug);
   if (!p) return {};
   return {
-    title: `${p.name}, ${p.fabric}`,
+    title: `${nameWithColour(p)}, ${p.fabric}`,
     description: `${p.description} Shop online at almera with island-wide delivery in Sri Lanka.`,
     alternates: { canonical: `/product/${p.slug}` },
     openGraph: p.images[0] ? { images: [{ url: `${p.images[0]}?w=1200&h=1500&fit=crop`, alt: p.name }] } : undefined,
@@ -59,8 +60,9 @@ async function ProductDetails({ params }: Pick<PageProps<"/product/[slug]">, "pa
     name: p.categories[0] ?? "Shop",
   };
   const options = stitchingOptions(p);
+  const colours = colourOptions(p, allProducts);
   const relatedItems = allProducts
-    .filter((x) => x.categories[0] === p.categories[0] && x.slug !== p.slug)
+    .filter((x) => x.categories[0] === p.categories[0] && x.slug !== p.slug && !colours.includes(x))
     .slice(0, 4);
 
   const jsonLd = {
@@ -86,7 +88,7 @@ async function ProductDetails({ params }: Pick<PageProps<"/product/[slug]">, "pa
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <div className="mx-auto max-w-7xl lg:grid lg:grid-cols-[1.15fr_1fr] lg:gap-14 lg:px-8 lg:pt-10">
-        <ProductGallery images={p.images} name={p.name} />
+        <ProductGallery key={p.slug} images={p.images} name={p.name} />
 
         <div className="px-4 pt-6 sm:px-8 lg:px-0 lg:pt-0">
           <div className="lg:sticky lg:top-28">
@@ -101,8 +103,14 @@ async function ProductDetails({ params }: Pick<PageProps<"/product/[slug]">, "pa
             </p>
             <p className="mt-5 leading-relaxed text-ink/80">{p.description}</p>
 
+            {colours.length > 0 && (
+              <div className="mt-6">
+                <ColourPicker current={p} options={colours} />
+              </div>
+            )}
+
             <div className="mt-6">
-              <ProductPurchase product={p} />
+              <ProductPurchase key={p.slug} product={p} />
             </div>
 
             <div className="mt-8 divide-y divide-line border-y border-line">

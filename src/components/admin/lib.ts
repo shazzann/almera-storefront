@@ -61,6 +61,7 @@ export type ProductRow = {
   stock: number | string;
   is_featured?: boolean;
   is_active?: boolean;
+  colour_group?: string | null;
   product_variants?: Variant[];
 };
 
@@ -137,6 +138,8 @@ export type ProductPayload = {
   size_stocks?: Record<string, number>;
   is_featured: boolean;
   is_active: boolean;
+  /** Slug of the product this one is another colour of. */
+  colour_of?: string;
 };
 
 export type OrderStatus =
@@ -367,6 +370,23 @@ export function slugify(name: string) {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "");
+}
+
+/** Swaps the colour inside a name like "Lilac chikan lawn". Names without the colour stay as they are. */
+export function renameForColour(name: string, from: string, to: string) {
+  const word = from.trim();
+  if (!word) return name;
+  const pattern = new RegExp(`\\b${word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i");
+  if (!pattern.test(name)) return name;
+  const renamed = name.replace(pattern, () => to.trim()).replace(/\s+/g, " ").trim();
+  return renamed.charAt(0).toUpperCase() + renamed.slice(1);
+}
+
+export function colourGroupOf(product: ProductRow, products: ProductRow[]) {
+  if (!product.colour_group) return [product];
+  return products
+    .filter((p) => p.colour_group === product.colour_group)
+    .sort((a, b) => a.colour.localeCompare(b.colour));
 }
 
 /** Saving is keyed on the slug, so a new product must never reuse an existing one. */

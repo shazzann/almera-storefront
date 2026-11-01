@@ -2,12 +2,12 @@
 
 import Image from "next/image";
 import { useEffect, useState } from "react";
-import { CloseIcon, PlusIcon } from "@/components/icons";
-import { DENIM_SIZES, SIZES, formatLKR } from "@/lib/catalog";
+import { CheckIcon, ChevronIcon, CloseIcon, PlusIcon } from "@/components/icons";
+import { DENIM_SIZES, SIZES, formatLKR, nameWithColour } from "@/lib/catalog";
 import { useAdmin } from "./admin-app";
 import { CameraIcon } from "./admin-icons";
 import { EmptyState, Field, NumberInput, StickyBar, StockRow, SwitchRow, TopBar, Card } from "./ui";
-import { num, productPayload, stockRows, uniqueSlug, type ProductRow, type Tag } from "./lib";
+import { colourGroupOf, num, productPayload, renameForColour, stockRows, uniqueSlug, type ProductRow, type Tag } from "./lib";
 
 const FABRICS = ["Lawn", "Cotton", "Rayon", "Muslin", "Khushboo", "Hakoba", "Chiffon", "Silk", "Denim"];
 const PIECES = ["Kurta", "Shirt fabric", "Trouser", "Dupatta", "Choli", "Lehenga skirt", "Jacket", "Jeans"];
@@ -18,6 +18,7 @@ const TAGS: { key: Tag; label: string }[] = [
 ];
 
 const NEW_DRAFT_KEY = "almera.admin.newProduct";
+const NEW_COLOUR_PREFIX = "new-colour:";
 
 type Form = {
   name: string;
@@ -96,9 +97,23 @@ function formFrom(p: ProductRow): Form {
   };
 }
 
-function readDraft(): Form | null {
+/** Everything carries over except what's different for each colour. */
+function colourFormFrom(source: ProductRow): Form {
+  return {
+    ...formFrom(source),
+    name: renameForColour(source.name, source.colour, ""),
+    colour: "",
+    images: [],
+    unstitchedStock: 0,
+    sizeStocks: {},
+    isActive: true,
+    isFeatured: false,
+  };
+}
+
+function readDraft(key: string): Form | null {
   try {
-    const raw = localStorage.getItem(NEW_DRAFT_KEY);
+    const raw = localStorage.getItem(key);
     return raw ? { ...BLANK, ...JSON.parse(raw) } : null;
   } catch {
     return null;
@@ -107,7 +122,9 @@ function readDraft(): Form | null {
 
 export function ProductEditor({ id }: { id: string | null }) {
   const { data, back } = useAdmin();
-  const isNew = id === "new";
+  const colourOf = id?.startsWith(NEW_COLOUR_PREFIX) ? id.slice(NEW_COLOUR_PREFIX.length) : null;
+  const source = colourOf ? data.products.find((p) => p.slug === colourOf) : undefined;
+  const isNew = id === "new" || Boolean(source);
   const existing = data.products.find((p) => p.id === id || p.slug === id);
 
   if (!isNew && !existing) {
@@ -120,13 +137,15 @@ export function ProductEditor({ id }: { id: string | null }) {
       </>
     );
   }
-  return <EditorForm existing={existing} />;
+  return <EditorForm key={id ?? "new"} existing={existing} colourSource={source} />;
 }
 
-function EditorForm({ existing }: { existing?: ProductRow }) {
-  const { data, source, run, back, toast } = useAdmin();
+function EditorForm({ existing, colourSource }: { existing?: ProductRow; colourSource?: ProductRow }) {
+  const { data, source, run, go, back, toast } = useAdmin();
   const isNew = !existing;
-  const [form, setForm] = useState<Form>(existing ? formFrom(existing) : BLANK);
+  const draftKey = colourSource ? `${NEW_DRAFT_KEY}.${colourSource.slug}` : NEW_DRAFT_KEY;
+  const [initial] = useState<Form>(() => (existing ? formFrom(existing) : colourSource ? colourFormFrom(colourSource) : BLANK));
+  const [form, setForm] = useState<Form>(initial);
   const [restored, setRestored] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [uploading, setUploading] = useState(0);
@@ -142,27 +161,27 @@ function EditorForm({ existing }: { existing?: ProductRow }) {
   useEffect(() => {
     if (!isNew) return;
     const t = setTimeout(() => {
-      const draft = readDraft();
+      const draft = readDraft(draftKey);
       if (draft) {
         setForm(draft);
         setRestored(true);
       }
     }, 0);
     return () => clearTimeout(t);
-  }, [isNew]);
+  }, [isNew, draftKey]);
 
   useEffect(() => {
-    if (!isNew || form === BLANK) return;
+    if (!isNew || form === initial) return;
     try {
-      localStorage.setItem(NEW_DRAFT_KEY, JSON.stringify(form));
+      localStorage.setItem(draftKey, JSON.stringify(form));
     } catch {}
-  }, [form, isNew]);
+  }, [form, initial, isNew, draftKey]);
 
   function discardDraft() {
     try {
-      localStorage.removeItem(NEW_DRAFT_KEY);
+      localStorage.removeItem(draftKey);
     } catch {}
-    setForm(BLANK);
+    setForm(initial);
     setRestored(false);
   }
 
@@ -170,6 +189,24 @@ function EditorForm({ existing }: { existing?: ProductRow }) {
   const subcategoryOptions = Array.from(
     new Set(selectable.filter((c) => form.categories.includes(c.slug)).flatMap((c) => c.subcategories ?? [])),
   );
+  const colourSiblings = existing ? colourGroupOf(existing, data.products) : [];
+
+  function changeColour(colour: string) {
+    // Follows the colour until the owner types their own name.
+    const followsColour = colourSource && form.name === renameForColour(colourSource.name, colourSource.colour, form.colour);
+    setForm((f) => ({ ...f, colour, name: followsColour ? renameForColour(colourSource.name, colourSource.colour, colour) : f.name }));
+    setErrors((e) => (e.colour ? { ...e, colour: "" } : e));
+  }
+
+  function addColour() {
+    if (!existing) return;
+    if (JSON.stringify(form) !== JSON.stringify(initial)) {
+      toast("Save your changes first, then add another colour.", "err");
+      return;
+    }
+    go({ view: "product", id: `${NEW_COLOUR_PREFIX}${existing.slug}` });
+  }
+
   const totalStock =
     (form.soldUnstitched ? form.unstitchedStock : 0) +
     (form.soldStitched ? form.sizes.reduce((sum, s) => sum + (form.sizeStocks[s] ?? 0), 0) : 0);
@@ -194,6 +231,11 @@ function EditorForm({ existing }: { existing?: ProductRow }) {
     const e: Record<string, string> = {};
     if (form.images.length === 0) e.images = "Add at least one photo.";
     if (form.name.trim().length < 2) e.name = "Give this product a name.";
+    const groupMembers = colourSource ? colourGroupOf(colourSource, data.products) : colourSiblings.filter((p) => p.slug !== existing?.slug);
+    if (colourSource || existing?.colour_group) {
+      if (!form.colour.trim()) e.colour = "Enter the colour.";
+      else if (groupMembers.some((p) => p.colour.trim().toLowerCase() === form.colour.trim().toLowerCase())) e.colour = "This item already has this colour.";
+    }
     if (!form.soldUnstitched && !form.soldStitched) e.sold = "Choose at least one way to sell it.";
     if (form.soldUnstitched && num(form.priceUnstitched) <= 0) e.priceUnstitched = "Enter the unstitched price.";
     if (form.soldStitched && num(form.priceStitched) <= 0) e.priceStitched = "Enter the stitched price.";
@@ -207,7 +249,8 @@ function EditorForm({ existing }: { existing?: ProductRow }) {
   async function save() {
     if (!validate()) return;
     setSaving(true);
-    const slug = existing?.slug ?? uniqueSlug(form.name, data.products.map((p) => p.slug));
+    const slugName = colourSource ? nameWithColour({ name: form.name, colour: form.colour, colourGroup: colourSource.slug }) : form.name;
+    const slug = existing?.slug ?? uniqueSlug(slugName, data.products.map((p) => p.slug));
     const blankRow: ProductRow = { slug, name: "", categories: [], colour: "", fabric: "", images: [], pieces: [], sizes: [], tags: [], description: "", stock: 0 };
     const opt = (sold: boolean, v: string) => (sold && v ? num(v) : null);
     const ok = await run(
@@ -234,15 +277,16 @@ function EditorForm({ existing }: { existing?: ProductRow }) {
             size_stocks: form.soldStitched ? Object.fromEntries(form.sizes.map((s) => [s, form.sizeStocks[s] ?? 0])) : {},
             is_active: form.isActive,
             is_featured: form.isFeatured,
+            ...(colourSource ? { colour_of: colourSource.slug } : {}),
           }),
         ),
-      isNew ? `${form.name.trim()} added to your store` : `${form.name.trim()} saved`,
+      colourSource ? `${form.colour.trim()} added to your store` : isNew ? `${form.name.trim()} added to your store` : `${form.name.trim()} saved`,
     );
     setSaving(false);
     if (ok) {
       if (isNew) {
         try {
-          localStorage.removeItem(NEW_DRAFT_KEY);
+          localStorage.removeItem(draftKey);
         } catch {}
       }
       back({ view: "products" });
@@ -252,8 +296,8 @@ function EditorForm({ existing }: { existing?: ProductRow }) {
   return (
     <>
       <TopBar
-        title={isNew ? "New product" : "Edit product"}
-        subtitle={existing?.name}
+        title={colourSource ? "New colour" : isNew ? "New product" : "Edit product"}
+        subtitle={colourSource?.name ?? existing?.name}
         onBack={() => back({ view: "products" })}
         right={existing && <a href={`/product/${existing.slug}`} target="_blank" rel="noreferrer" className="px-3 py-2 text-[0.9rem] font-medium text-sage-deep">View</a>}
       />
@@ -264,6 +308,10 @@ function EditorForm({ existing }: { existing?: ProductRow }) {
             <span>Your unsaved product is back.</span>
             <button onClick={discardDraft} className="min-h-9 font-semibold underline underline-offset-4">Start over</button>
           </div>
+        )}
+
+        {colourSource && (
+          <p className="rounded-xl bg-sage-soft px-4 py-3 text-[0.9rem] leading-relaxed">Details and prices are copied from {colourSource.name}. Add this colour’s name, photos and stock.</p>
         )}
 
         <Card className="p-4" >
@@ -321,9 +369,11 @@ function EditorForm({ existing }: { existing?: ProductRow }) {
             <textarea value={form.description} onChange={(e) => set("description", e.target.value)} rows={3} placeholder="Fabric feel, embroidery, when to wear it" className="field resize-none" autoCapitalize="sentences" />
           </Field>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Colour">
-              <input value={form.colour} onChange={(e) => set("colour", e.target.value)} placeholder="Lilac" className="field" autoCapitalize="sentences" />
-            </Field>
+            <div id="section-colour">
+              <Field label="Colour" error={errors.colour}>
+                <input value={form.colour} onChange={(e) => changeColour(e.target.value)} placeholder="Lilac" className="field" autoCapitalize="sentences" />
+              </Field>
+            </div>
             <Field label="Fabric">
               <input value={form.fabric} onChange={(e) => set("fabric", e.target.value)} placeholder="Lawn" className="field" autoCapitalize="sentences" />
             </Field>
@@ -336,6 +386,37 @@ function EditorForm({ existing }: { existing?: ProductRow }) {
             ))}
           </div>
         </Card>
+
+        {existing && (
+          <Card className="p-4">
+            <h2 className="font-semibold">Colours</h2>
+            <p className="mt-0.5 text-[0.85rem] leading-snug text-ink/60">Each colour has its own photos, price and stock. Customers choose between them on the product page.</p>
+            {colourSiblings.length > 1 && (
+              <ul className="mt-3 divide-y divide-line">
+                {colourSiblings.map((p) => {
+                  const current = p.slug === existing.slug;
+                  return (
+                    <li key={p.slug}>
+                      <button type="button" disabled={current} onClick={() => go({ view: "product", id: p.id ?? p.slug })} className="flex min-h-16 w-full items-center gap-3 py-2 text-left">
+                        <span className="relative h-12 w-9 shrink-0 overflow-hidden rounded-md bg-sage-soft">
+                          {p.images[0] && <Image src={p.images[0]} alt="" fill sizes="36px" className="object-cover" />}
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate font-medium">{p.colour || p.name}</span>
+                          <span className="block text-[0.85rem] text-ink/60 tabular-nums">{p.is_active === false ? "Hidden · " : ""}{num(p.stock)} in stock</span>
+                        </span>
+                        {current ? <CheckIcon className="size-5 shrink-0" aria-label="This colour" /> : <ChevronIcon className="size-4 shrink-0 opacity-40" />}
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+            <button type="button" onClick={addColour} className="mt-3 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-line font-medium">
+              <PlusIcon className="size-5" /> Add another colour
+            </button>
+          </Card>
+        )}
 
         <Card className="p-4">
           <div id="section-sold">

@@ -7,6 +7,7 @@ import {
   FREE_DELIVERY_FROM,
   getOptionStock,
   type DeliveryMethod,
+  nameWithColour,
   type Product,
   type Size,
   type Stitching,
@@ -145,7 +146,7 @@ export const cart = {
           l.key === key
             ? {
                 ...l,
-                name: product.name,
+                name: nameWithColour(product),
                 image,
                 unitPrice,
                 maxStock,
@@ -158,7 +159,7 @@ export const cart = {
           {
             key,
             slug: product.slug,
-            name: product.name,
+            name: nameWithColour(product),
             image,
             unitPrice,
             maxStock,
