@@ -15,6 +15,7 @@ import {
 } from "@/lib/catalog";
 import { CACHE_TAGS } from "@/lib/cache-invalidation.server";
 import { getSupabaseAdmin, isSupabaseConfigured } from "@/lib/supabase/admin.server";
+import { publicImageUrl } from "@/lib/image-url";
 
 export type DbProductVariantRow = {
   id: string;
@@ -98,7 +99,7 @@ export function mapDbRowToProduct(row: DbProductRow): Product {
     fabric: row.fabric,
     price,
     ...(Object.keys(wasPrice).length > 0 ? { wasPrice } : {}),
-    images: row.images ?? [],
+    images: (row.images ?? []).map((img) => publicImageUrl(img)),
     pieces: row.pieces ?? [],
     description: row.description ?? "",
     stock: Number(row.stock ?? 0),
@@ -276,7 +277,7 @@ export async function getAllCategories(): Promise<Category[]> {
       slug: row.slug as CategorySlug,
       name: row.name,
       blurb: row.description || defaultGetCategory(row.slug)?.blurb || "",
-      image: row.image_url || defaultGetCategory(row.slug)?.image || "",
+      image: row.image_url ? publicImageUrl(row.image_url) : defaultGetCategory(row.slug)?.image || "",
       subcategories:
         Array.isArray(row.subcategories) && row.subcategories.length > 0
           ? row.subcategories
@@ -303,7 +304,11 @@ export async function getHeroSettings(): Promise<HeroSettings> {
       .eq("key", "hero")
       .maybeSingle();
     if (error || !data) return DEFAULT_HERO;
-    return { ...DEFAULT_HERO, ...(data.value as Partial<HeroSettings>) };
+    const hero = { ...DEFAULT_HERO, ...(data.value as Partial<HeroSettings>) };
+    if (hero.imageUrl) {
+      hero.imageUrl = publicImageUrl(hero.imageUrl);
+    }
+    return hero;
   } catch {
     return DEFAULT_HERO;
   }
@@ -324,7 +329,11 @@ export async function getGallerySettings(): Promise<GallerySettings> {
       .eq("key", "gallery")
       .maybeSingle();
     if (error || !data) return DEFAULT_GALLERY;
-    return { ...DEFAULT_GALLERY, ...(data.value as Partial<GallerySettings>) };
+    const gallery = { ...DEFAULT_GALLERY, ...(data.value as Partial<GallerySettings>) };
+    if (Array.isArray(gallery.tiles)) {
+      gallery.tiles = gallery.tiles.map((t) => (t ? publicImageUrl(t) : null));
+    }
+    return gallery;
   } catch {
     return DEFAULT_GALLERY;
   }

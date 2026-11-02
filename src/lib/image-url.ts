@@ -2,15 +2,13 @@ const STORAGE_BUCKET = "product-images";
 
 /**
  * Returns the configured CDN host (e.g. https://cdn.almera.lk).
- * Falls back to NEXT_PUBLIC_SUPABASE_URL or the production CDN.
+ * Defaults directly to the production Cloudflare Edge CDN.
  */
 export function getCdnHost(): string {
   const host =
     process.env.NEXT_PUBLIC_CDN_URL ||
     process.env.NEXT_PUBLIC_STORAGE_CDN_URL ||
     process.env.STORAGE_CDN_URL ||
-    process.env.NEXT_PUBLIC_SUPABASE_CDN_URL ||
-    process.env.NEXT_PUBLIC_SUPABASE_URL ||
     "https://cdn.almera.lk";
 
   return host.replace(/\/+$/, "");
@@ -144,4 +142,3 @@ export function isCdnUrl(url: string | null | undefined): boolean {
   const supabaseHost = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
   return url.startsWith(cdnHost) || (Boolean(supabaseHost) && url.startsWith(supabaseHost));
 }
-
