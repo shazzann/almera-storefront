@@ -144,34 +144,6 @@ export async function getAllProducts(): Promise<Product[]> {
   }
 }
 
-export async function getProductsByCategory(slug: CategorySlug): Promise<Product[]> {
-  "use cache";
-  cacheLife("minutes");
-  cacheTag(CACHE_TAGS.products, CACHE_TAGS.category(slug));
-
-  if (!isSupabaseConfigured()) return [];
-
-  try {
-    const supabase = getSupabaseAdmin();
-    let query = supabase.from("products").select(PRODUCT_SELECT).eq("is_active", true);
-
-    if (slug === "ready-to-wear") {
-      query = query.eq("is_ready_to_wear", true);
-    } else {
-      query = query.contains("categories", [slug]);
-    }
-
-    const { data, error } = await query
-      .order("is_featured", { ascending: false })
-      .order("created_at", { ascending: false });
-
-    if (error || !data) return [];
-    return data.map((row) => mapDbRowToProduct(row as DbProductRow));
-  } catch {
-    return [];
-  }
-}
-
 export async function getFilteredProducts(filters: ShopFilterParams = {}): Promise<Product[]> {
   "use cache";
   cacheLife("minutes");

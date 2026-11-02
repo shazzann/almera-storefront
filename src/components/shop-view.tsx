@@ -44,12 +44,15 @@ const toggle = <T,>(list: T[], v: T) =>
   list.includes(v) ? list.filter((x) => x !== v) : [...list, v];
 
 export function ShopView({
+  resetKey,
   items,
   showCategoryFilter,
   showStitchingFilter = true,
   subcategories,
   categoryList = defaultCategories,
 }: {
+  /** Filters start fresh when this changes. The view stays mounted so shared cards don't reload. */
+  resetKey: string;
   items: Product[];
   showCategoryFilter: boolean;
   showStitchingFilter?: boolean;
@@ -64,10 +67,19 @@ export function ShopView({
   const sentinelRef = useRef<HTMLDivElement>(null);
   const closeSheet = useCallback(() => setSheetOpen(false), []);
 
+  const [shownKey, setShownKey] = useState(resetKey);
+  if (shownKey !== resetKey) {
+    setShownKey(resetKey);
+    setFilters(NONE);
+    setChip(null);
+    setSort("featured");
+    setPage(1);
+  }
+
   // The filter sheet is transient: close it if the page is hidden by a navigation.
   useLayoutEffect(() => () => setSheetOpen(false), []);
 
-  // Read initial URL search params on client mount (?sub=...&sort=...)
+  // Read URL search params on mount and on each tab change, so Back restores them (?sub=...&sort=...)
   useEffect(() => {
     try {
       const params = new URLSearchParams(window.location.search);
@@ -82,7 +94,7 @@ export function ShopView({
     } catch {
       // ignore
     }
-  }, [subcategories]);
+  }, [resetKey, subcategories]);
 
   const activeCount =
     filters.stitching.length +

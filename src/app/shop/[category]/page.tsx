@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
-import { ShopHeader } from "@/components/shop-header";
-import { ShopView } from "@/components/shop-view";
+import { ShopBrowser } from "@/components/shop-browser";
 import { categories, getCategory } from "@/lib/catalog";
-import { getAllCategories, getProductsByCategory } from "@/lib/catalog.server";
+import { getAllCategories, getAllProducts } from "@/lib/catalog.server";
 
 export function generateStaticParams() {
   return categories.map((c) => ({ category: c.slug }));
@@ -55,27 +54,8 @@ async function CategoryContent({
   params,
 }: Pick<PageProps<"/shop/[category]">, "params">) {
   const slug = (await params).category;
-  const allCats = await getAllCategories();
+  const [allCats, products] = await Promise.all([getAllCategories(), getAllProducts()]);
   const c = allCats.find((cat) => cat.slug === slug) ?? getCategory(slug);
   if (!c) notFound();
-  const items = await getProductsByCategory(c.slug);
-  return (
-    <>
-      <ShopHeader
-        title={c.name}
-        blurb={c.blurb}
-        active={c.slug}
-        categoryList={allCats}
-      />
-      <ShopView
-        key={c.slug}
-        items={items}
-        showCategoryFilter={false}
-        showStitchingFilter={!["ready-to-wear", "western"].includes(c.slug)}
-        subcategories={c.subcategories}
-        categoryList={allCats}
-      />
-      <div className="h-20" />
-    </>
-  );
+  return <ShopBrowser products={products} categoryList={allCats} />;
 }

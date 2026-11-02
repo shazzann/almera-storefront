@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
-import { ShopHeader } from "@/components/shop-header";
-import { ShopView } from "@/components/shop-view";
+import { ShopBrowser } from "@/components/shop-browser";
 import { getAllCategories, getAllProducts } from "@/lib/catalog.server";
 
 export const metadata: Metadata = {
@@ -11,23 +10,9 @@ export const metadata: Metadata = {
 };
 
 export default async function ShopPage() {
-  const [items, categoryList] = await Promise.all([
+  const [products, categoryList] = await Promise.all([
     getAllProducts(),
     getAllCategories(),
   ]);
-  return (
-    <>
-      <ShopHeader
-        title={
-          <>
-            the whole <em>wardrobe</em>
-          </>
-        }
-        blurb="Every lawn suit, shalwar kameez and lehenga we have in stock. Most pieces come in small quantities, so they sell quickly."
-        categoryList={categoryList}
-      />
-      <ShopView items={items} showCategoryFilter categoryList={categoryList} />
-      <div className="h-20" />
-    </>
-  );
+  return <ShopBrowser products={products} categoryList={categoryList} />;
 }

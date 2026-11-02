@@ -7,6 +7,9 @@ import { formatLKR, startingPrice, stitchingOptions, type Product } from "@/lib/
 
 const FALLBACK_IMAGE = "https://images.unsplash.com/photo-1745313452052-0e4e341f326c";
 
+/** Photos already on screen once skip the fade-in, so coming back to a tab doesn't look like a reload. */
+const shownPhotos = new Set<string>();
+
 export function stockNote(p: Product) {
   if (p.stock === 0) return "Sold out";
   if (p.stock <= 3) return `Only ${p.stock} left`;
@@ -22,15 +25,15 @@ export function ProductCard({
   priority?: boolean;
   sizes?: string;
 }) {
-  const [loaded, setLoaded] = useState(false);
+  const primarySrc = p.images[0] || FALLBACK_IMAGE;
+  const secondarySrc = p.images[1];
+  const [loaded, setLoaded] = useState(() => shownPhotos.has(primarySrc));
   const [hovered, setHovered] = useState(false);
   const options = stitchingOptions(p);
   const from = startingPrice(p);
   const was = p.wasPrice ? Math.min(...Object.values(p.wasPrice)) : null;
   const note = stockNote(p);
   const soldOut = p.stock === 0;
-  const primarySrc = p.images[0] || FALLBACK_IMAGE;
-  const secondarySrc = p.images[1];
 
   return (
     <Link
@@ -54,7 +57,10 @@ export function ProductCard({
           priority={priority}
           loading={priority ? "eager" : "lazy"}
           decoding="async"
-          onLoad={() => setLoaded(true)}
+          onLoad={() => {
+            shownPhotos.add(primarySrc);
+            setLoaded(true);
+          }}
           className={`object-cover transition duration-[1.2s] ease-[var(--ease-out-soft)] group-hover:scale-[1.04] ${
             loaded ? "opacity-100" : "opacity-0"
           } ${soldOut ? "grayscale-[60%] opacity-70" : ""}`}

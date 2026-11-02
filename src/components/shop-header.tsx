@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type MouseEvent } from "react";
 import Link from "next/link";
 import {
   categories as defaultCategories,
@@ -21,13 +21,21 @@ export function ShopHeader({
 }) {
   const activePill = useRef<HTMLAnchorElement>(null);
   const pillRow = useRef<HTMLDivElement>(null);
+  const settled = useRef(false);
 
   // With nine categories the active pill can start off-screen on phones.
   useEffect(() => {
     const pill = activePill.current;
     const row = pillRow.current;
-    if (pill && row) row.scrollLeft = pill.offsetLeft - 16;
-  }, []);
+    if (pill && row) row.scrollTo({ left: pill.offsetLeft - 16, behavior: settled.current ? "smooth" : "auto" });
+    settled.current = true;
+  }, [active]);
+
+  const choose = (e: MouseEvent, href: string) => {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    e.preventDefault();
+    if (window.location.pathname !== href) window.history.pushState(null, "", href);
+  };
 
   const pills = [
     { href: "/shop", label: "All", slug: undefined },
@@ -54,6 +62,8 @@ export function ShopHeader({
               key={p.href}
               ref={on ? activePill : undefined}
               href={p.href}
+              prefetch={false}
+              onClick={(e) => choose(e, p.href)}
               aria-current={on ? "page" : undefined}
               className={`shrink-0 rounded-full border px-5 py-2.5 text-sm font-medium transition ${
                 on
