@@ -23,7 +23,11 @@ export function OrderCard({ order }: { order: AccountOrder }) {
     <Link href={`${base}/orders/${order.order_number}`} className="block rounded-[1.25rem] border border-line bg-ivory p-3.5 transition active:scale-[0.99]">
       <div className="flex items-start gap-3">
         <span className="relative h-[4.5rem] w-14 shrink-0">
-          {photos.length === 0 && <span className="arch-soft absolute inset-0 bg-sage-soft" />}
+          {photos.length === 0 && (
+            <span className="arch-soft absolute inset-0 overflow-hidden bg-sage-soft">
+              <Image src="/placeholder.svg" alt="" fill sizes="56px" className="object-cover opacity-60" />
+            </span>
+          )}
           {photos.map((it, i) => (
             <span key={it.id} className="arch-soft absolute inset-0 overflow-hidden bg-sage-soft ring-2 ring-ivory" style={{ transform: `translateX(${i * 5}px) scale(${1 - i * 0.08})`, zIndex: 3 - i }}>
               <Image src={it.image_url!} alt="" fill sizes="56px" className="object-cover" />

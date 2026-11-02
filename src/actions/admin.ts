@@ -16,7 +16,7 @@ import {
 import { restoreStock, type StockItem } from "@/lib/stock-helpers.server";
 import { getSupabaseAdmin } from "@/lib/supabase/admin.server";
 import sharp from "sharp";
-import { buildImageUrl } from "@/lib/image-url";
+import { buildImageUrl, getStoragePath } from "@/lib/image-url";
 
 function buildFrontendCategoryRows() {
   return frontendCategories.map((c, idx) => {
@@ -147,6 +147,20 @@ export async function upsertProductAction(
   const supabase = getSupabaseAdmin(accessToken);
   const colourGroup = payload.colour_of ? await resolveColourGroup(supabase, payload.colour_of) : null;
 
+  // Track any images removed from this product during edit to purge them from storage
+  let removedImages: string[] = [];
+  if (payload.id) {
+    const { data: existingProd } = await supabase
+      .from("products")
+      .select("images")
+      .eq("id", payload.id)
+      .maybeSingle();
+
+    const oldImages = Array.isArray(existingProd?.images) ? (existingProd.images as string[]) : [];
+    const newImages = new Set(payload.images);
+    removedImages = oldImages.filter((img) => !newImages.has(img));
+  }
+
   const normalizedSizes =
     payload.sizes.length > 0 ? payload.sizes : [...SIZES];
 
@@ -273,6 +287,17 @@ export async function upsertProductAction(
     accessToken,
   });
 
+  // Immediately purge removed photos from Supabase Storage
+  if (removedImages.length > 0) {
+    const pathsToRemove = removedImages
+      .map(getStoragePath)
+      .filter((p): p is string => Boolean(p));
+
+    if (pathsToRemove.length > 0) {
+      await supabase.storage.from("product-images").remove(pathsToRemove);
+    }
+  }
+
   revalidateCatalogCache([data.slug], data.categories);
   return data;
 }
@@ -284,15 +309,25 @@ export async function deleteProductAction(
   const admin = await assertAdmin(accessToken);
   const supabase = getSupabaseAdmin(accessToken);
 
-  // Orders keep their own copy of the name, price and photo, so past orders stay readable.
   const { data, error } = await supabase
     .from("products")
     .delete()
     .eq("id", productId)
-    .select("id, slug, name, categories")
+    .select("id, slug, name, categories, images")
     .single();
 
   if (error) throw new Error(error.message);
+
+  // Immediately purge all product images from Supabase Storage
+  if (Array.isArray(data.images) && data.images.length > 0) {
+    const pathsToRemove = (data.images as string[])
+      .map(getStoragePath)
+      .filter((p): p is string => Boolean(p));
+
+    if (pathsToRemove.length > 0) {
+      await supabase.storage.from("product-images").remove(pathsToRemove);
+    }
+  }
 
   await logAuditEvent({
     userId: admin.userId,
@@ -706,6 +741,13 @@ export async function upsertCategoryAction(
     ...(payload.id ? { id: payload.id } : {}),
   };
 
+  // Check if old category image is being replaced
+  const { data: existingCat } = await supabase
+    .from("categories")
+    .select("image_url")
+    .eq("slug", payload.slug)
+    .maybeSingle();
+
   const { data, error } = await supabase
     .from("categories")
     .upsert(row, { onConflict: "slug" })
@@ -713,6 +755,13 @@ export async function upsertCategoryAction(
     .single();
 
   if (error) throw new Error(error.message);
+
+  if (existingCat?.image_url && existingCat.image_url !== payload.image_url) {
+    const oldPath = getStoragePath(existingCat.image_url);
+    if (oldPath) {
+      await supabase.storage.from("product-images").remove([oldPath]);
+    }
+  }
 
   await logAuditEvent({
     userId: admin.userId,

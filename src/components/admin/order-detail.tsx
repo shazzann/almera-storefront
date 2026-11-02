@@ -105,7 +105,7 @@ export function OrderDetail({ id }: { id: string | null }) {
           {(order.order_items ?? []).map((it) => (
             <div key={it.id} className="flex gap-3 p-3.5">
               <span className="relative h-20 w-16 shrink-0 overflow-hidden rounded-xl bg-sage-soft">
-                {it.image_url && <Image src={it.image_url} alt="" fill sizes="64px" className="object-cover" />}
+                <Image src={it.image_url || "/placeholder.svg"} alt={it.product_name || ""} fill sizes="64px" className="object-cover" />
               </span>
               <span className="min-w-0 flex-1">
                 <span className="block leading-snug font-medium">{it.product_name}</span>

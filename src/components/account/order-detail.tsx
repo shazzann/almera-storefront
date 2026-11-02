@@ -42,7 +42,7 @@ export function OrderDetailScreen({ order }: { order: AccountOrder }) {
           {order.order_items.map((it) => (
             <Link key={it.id} href={`/product/${it.product_slug}`} className="flex gap-3 p-3.5">
               <span className="arch-soft relative h-20 w-16 shrink-0 overflow-hidden bg-sage-soft">
-                {it.image_url && <Image src={it.image_url} alt="" fill sizes="64px" className="object-cover" />}
+                <Image src={it.image_url || "/placeholder.svg"} alt={it.product_name || ""} fill sizes="64px" className="object-cover" />
               </span>
               <span className="min-w-0 flex-1">
                 <span className="block leading-snug font-medium">{it.product_name}</span>
