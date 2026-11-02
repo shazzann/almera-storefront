@@ -15,6 +15,8 @@ import {
 } from "@/lib/catalog";
 import { restoreStock, type StockItem } from "@/lib/stock-helpers.server";
 import { getSupabaseAdmin } from "@/lib/supabase/admin.server";
+import sharp from "sharp";
+import { buildImageUrl } from "@/lib/image-url";
 
 function buildFrontendCategoryRows() {
   return frontendCategories.map((c, idx) => {
@@ -821,4 +823,82 @@ export async function updateGalleryAction(
 
   refreshGalleryCache();
   return value;
+}
+
+
+export async function uploadProductImageAction(
+  accessToken: string | null | undefined,
+  formData: FormData,
+): Promise<{ ok: boolean; url?: string; error?: string }> {
+  try {
+    await assertAdmin(accessToken);
+    const file = formData.get("file");
+    const rawFolder = String(formData.get("folder") || "products");
+    const folder = rawFolder.replace(/[^a-zA-Z0-9_-]/g, "") || "products";
+
+    if (!file || !(file instanceof Blob)) {
+      return { ok: false, error: "No image file provided." };
+    }
+
+    const rawBuffer = Buffer.from(await file.arrayBuffer());
+    if (rawBuffer.length === 0) {
+      return { ok: false, error: "The provided file is empty." };
+    }
+
+    const originalName = file instanceof File ? file.name : "upload.jpg";
+    const baseName =
+      originalName
+        .replace(/\.[^/.]+$/, "")
+        .replace(/[^a-zA-Z0-9._-]/g, "-")
+        .slice(0, 60) || "photo";
+
+    const mime = (file.type || "").toLowerCase();
+
+    let outputBuffer: Buffer;
+    let extension = "webp";
+    let contentType = "image/webp";
+
+    if (mime === "image/svg+xml") {
+      outputBuffer = rawBuffer;
+      extension = "svg";
+      contentType = "image/svg+xml";
+    } else if (mime === "image/gif") {
+      outputBuffer = rawBuffer;
+      extension = "gif";
+      contentType = "image/gif";
+    } else {
+      // Use sharp to auto-orient, constrain dimensions, and compress to WebP
+      outputBuffer = await sharp(rawBuffer)
+        .rotate() // auto-orient based on EXIF tag (critical for iPhone camera photos)
+        .resize({
+          width: 1200,
+          height: 1600,
+          fit: "inside",
+          withoutEnlargement: true,
+        })
+        .webp({ quality: 82, effort: 4 })
+        .toBuffer();
+    }
+
+    const path = `${folder}/${Date.now()}-${baseName}.${extension}`;
+    const supabase = getSupabaseAdmin();
+
+    const { error: uploadError } = await supabase.storage
+      .from("product-images")
+      .upload(path, outputBuffer, {
+        contentType,
+        cacheControl: "31536000",
+        upsert: false,
+      });
+
+    if (uploadError) {
+      return { ok: false, error: uploadError.message };
+    }
+
+    const url = buildImageUrl(path);
+    return { ok: true, url };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Image upload failed.";
+    return { ok: false, error: message };
+  }
 }

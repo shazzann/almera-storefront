@@ -12,11 +12,11 @@ import {
   upsertCategoryAction,
   updateGalleryAction,
   updateHeroAction,
+  uploadProductImageAction,
   upsertCouponAction,
   upsertProductAction,
 } from "@/actions/admin";
 import { optimizeImageForUpload } from "@/lib/image-optimizer";
-import { buildImageUrl } from "@/lib/image-url";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import type { AdminData, AdminSource, Coupon, CategoryRow, ProductPayload } from "./lib";
 
@@ -97,17 +97,19 @@ export const realSource: AdminSource = {
     return updateGalleryAction(await token(), payload);
   },
   async uploadImage(file, folder) {
-    const sb = getSupabaseBrowserClient();
-    if (!sb) throw new Error("Image storage isn't set up.");
-    const optimized = await optimizeImageForUpload(file);
-    const safeName = optimized.name.replace(/[^a-zA-Z0-9._-]/g, "-");
-    const path = `${folder}/${Date.now()}-${safeName}`;
-    const { error } = await sb.storage
-      .from("product-images")
-      .upload(path, optimized, { contentType: optimized.type, cacheControl: "31536000", upsert: false });
-    if (error) throw error;
-    // Store the canonical Edge CDN URL directly in the database
-    return buildImageUrl(path);
+    const t = await token();
+    const fd = new FormData();
+    // On Android/Desktop this pre-optimizes to WebP so network upload is tiny (< 100KB);
+    // On iPhone it pre-scales so mobile upload is fast, and the server converts it to 100% WebP with sharp!
+    const preOptimized = await optimizeImageForUpload(file);
+    fd.append("file", preOptimized);
+    fd.append("folder", folder);
+
+    const res = await uploadProductImageAction(t, fd);
+    if (!res.ok || !res.url) {
+      throw new Error(res.error || "Image upload failed.");
+    }
+    return res.url;
   },
   async signOut() {
     await getSupabaseBrowserClient()?.auth.signOut();
