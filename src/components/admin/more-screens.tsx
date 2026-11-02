@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+import Image from "@/components/image";
 import { useEffect, useRef, useState } from "react";
 import { ChevronIcon, CloseIcon, PlusIcon } from "@/components/icons";
 import { useAdmin } from "./admin-app";

@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+import Image from "@/components/image";
 import { useEffect, useRef, useState } from "react";
 
 const FALLBACK_IMAGE = "https://images.unsplash.com/photo-1745313452052-0e4e341f326c";

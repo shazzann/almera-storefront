@@ -139,8 +139,9 @@ const pause = () => new Promise((r) => setTimeout(r, 350));
 const clone = () => structuredClone(data);
 
 export const previewSource: AdminSource = {
-  async check() {
-    return { ok: true, email: "preview@almera.lk" };
+  async open() {
+    await pause();
+    return { ok: true, email: "preview@almera.lk", data: clone() };
   },
   async load() {
     await pause();

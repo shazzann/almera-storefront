@@ -37,12 +37,16 @@ export async function optimizeImageToWebP(
 
   ctx.drawImage(bitmap, 0, 0, width, height);
 
-  const blob = await new Promise<Blob | null>((resolve) =>
-    canvas.toBlob((b) => resolve(b), "image/webp", quality),
-  );
+  const encode = (type: string) =>
+    new Promise<Blob | null>((resolve) => canvas.toBlob((b) => resolve(b), type, quality));
+
+  // iPhones can't save WebP and quietly hand back a huge PNG, so fall back to JPEG there.
+  let blob = await encode("image/webp");
+  if (blob?.type !== "image/webp") blob = await encode("image/jpeg");
   if (!blob) return file;
 
   const baseName = file.name.replace(/\.[^/.]+$/, "");
-  return new File([blob], `${baseName}.webp`, { type: "image/webp" });
+  const extension = blob.type === "image/webp" ? "webp" : "jpg";
+  return new File([blob], `${baseName}.${extension}`, { type: blob.type });
 }
 

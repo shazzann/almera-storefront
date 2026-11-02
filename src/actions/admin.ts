@@ -14,30 +14,7 @@ import {
   type CategorySlug,
 } from "@/lib/catalog";
 import { restoreStock, type StockItem } from "@/lib/stock-helpers.server";
-import { getSupabaseAdmin, isSupabaseAdminConfigured } from "@/lib/supabase/admin.server";
-
-export async function getAdminStatusAction(accessToken?: string | null) {
-  const configured = isSupabaseAdminConfigured();
-  if (!configured) {
-    return {
-      supabaseConfigured: false,
-      authenticated: false,
-      email: null,
-      error: "Supabase credentials are not configured in .env.local.",
-    };
-  }
-  try {
-    const admin = await assertAdmin(accessToken);
-    return { supabaseConfigured: true, authenticated: true, email: admin.email };
-  } catch (e) {
-    return {
-      supabaseConfigured: true,
-      authenticated: false,
-      email: null,
-      error: e instanceof Error ? e.message : "Unauthorized",
-    };
-  }
-}
+import { getSupabaseAdmin } from "@/lib/supabase/admin.server";
 
 function buildFrontendCategoryRows() {
   return frontendCategories.map((c, idx) => {
@@ -74,21 +51,29 @@ async function resolveColourGroup(supabase: ReturnType<typeof getSupabaseAdmin>,
   return group;
 }
 
+/** One call for sign-in check and data, because the browser runs server actions one at a time. */
+export async function openAdminConsoleAction(accessToken?: string | null) {
+  let email: string;
+  try {
+    email = (await assertAdmin(accessToken)).email;
+  } catch (e) {
+    return { ok: false as const, error: e instanceof Error ? e.message : "Unauthorized" };
+  }
+  return { ok: true as const, email, data: await loadDashboardData(accessToken) };
+}
+
 export async function getAdminDashboardDataAction(accessToken?: string | null) {
   await assertAdmin(accessToken);
+  return loadDashboardData(accessToken);
+}
+
+async function loadDashboardData(accessToken?: string | null) {
   const frontendCategoryRows = buildFrontendCategoryRows();
   const supabase = getSupabaseAdmin(accessToken);
+  const readCategories = () => supabase.from("categories").select("*").order("sort_order", { ascending: true });
 
-  // Seed any missing storefront categories, without overwriting edits made in the console
-  await supabase
-    .from("categories")
-    .upsert(frontendCategoryRows, { onConflict: "slug", ignoreDuplicates: true });
-
-  const [categoriesRes, productsRes, ordersRes, couponsRes, auditRes, heroRes, galleryRes] = await Promise.all([
-    supabase
-      .from("categories")
-      .select("*")
-      .order("sort_order", { ascending: true }),
+  const [firstCategoriesRes, productsRes, ordersRes, couponsRes, auditRes, heroRes, galleryRes] = await Promise.all([
+    readCategories(),
     supabase
       .from("products")
       .select("*, product_variants(*)")
@@ -103,6 +88,14 @@ export async function getAdminDashboardDataAction(accessToken?: string | null) {
     supabase.from("site_settings").select("value").eq("key", "hero").maybeSingle(),
     supabase.from("site_settings").select("value").eq("key", "gallery").maybeSingle(),
   ]);
+
+  // Seed any missing storefront categories, without overwriting edits made in the console
+  let categoriesRes = firstCategoriesRes;
+  const missing = frontendCategoryRows.filter((row) => !firstCategoriesRes.data?.some((c) => c.slug === row.slug));
+  if (missing.length > 0) {
+    await supabase.from("categories").upsert(missing, { onConflict: "slug", ignoreDuplicates: true });
+    categoriesRes = await readCategories();
+  }
 
   return {
     supabaseConfigured: true,

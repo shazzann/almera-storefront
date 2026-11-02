@@ -9,6 +9,8 @@ const securityHeaders = [
   { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" },
 ];
 
+const supabaseHost = process.env.NEXT_PUBLIC_SUPABASE_URL ? new URL(process.env.NEXT_PUBLIC_SUPABASE_URL).hostname : null;
+
 const nextConfig: NextConfig = {
   cacheComponents: true,
   poweredByHeader: false,
@@ -17,9 +19,12 @@ const nextConfig: NextConfig = {
   },
   partialPrefetching: true,
   images: {
-    // Demo imagery is served straight from Unsplash's CDN, which resizes on the fly.
-    loader: "custom",
-    loaderFile: "./src/lib/image-loader.ts",
+    remotePatterns: supabaseHost ? [{ protocol: "https", hostname: supabaseHost, pathname: "/storage/v1/object/public/**" }] : [],
+    // A short list of widths keeps each photo to a handful of resized copies.
+    deviceSizes: [640, 828, 1200],
+    imageSizes: [96, 256, 384],
+    // Uploaded photos get a new name each time, so a resized copy never goes out of date.
+    minimumCacheTTL: 2678400,
   },
   turbopack: {
     rules: {

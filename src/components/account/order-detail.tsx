@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+import Image from "@/components/image";
 import Link from "next/link";
 import { CopyIcon } from "@/components/admin/admin-icons";
 import { CheckIcon, ChevronIcon, WhatsAppIcon } from "@/components/icons";

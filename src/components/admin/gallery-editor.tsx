@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+import Image from "@/components/image";
 import { useMemo, useState } from "react";
 import { CloseIcon } from "@/components/icons";
 import { galleryTiles } from "@/lib/catalog";

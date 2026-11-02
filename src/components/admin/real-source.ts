@@ -4,7 +4,7 @@ import {
   deleteCouponAction,
   deleteProductAction,
   getAdminDashboardDataAction,
-  getAdminStatusAction,
+  openAdminConsoleAction,
   recordBankDepositAction,
   reorderCategoriesAction,
   refundOrderAction,
@@ -28,10 +28,10 @@ async function token() {
 }
 
 export const realSource: AdminSource = {
-  async check() {
-    const status = await getAdminStatusAction(await token());
-    if (status.authenticated && status.email) return { ok: true, email: status.email };
-    return { ok: false, error: status.error ?? "This account can't open the admin console." };
+  async open() {
+    const result = await openAdminConsoleAction(await token());
+    if (result.ok) return { ok: true, email: result.email, data: result.data as unknown as AdminData };
+    return { ok: false, error: result.error ?? "This account can't open the admin console." };
   },
   async load() {
     return (await getAdminDashboardDataAction(await token())) as unknown as AdminData;
@@ -101,7 +101,7 @@ export const realSource: AdminSource = {
     const optimized = await optimizeImageToWebP(file);
     const safeName = optimized.name.replace(/[^a-zA-Z0-9._-]/g, "-");
     const path = `${folder}/${Date.now()}-${safeName}`;
-    const { error } = await sb.storage.from("product-images").upload(path, optimized, { contentType: optimized.type, upsert: false });
+    const { error } = await sb.storage.from("product-images").upload(path, optimized, { contentType: optimized.type, cacheControl: "31536000", upsert: false });
     if (error) throw error;
     return sb.storage.from("product-images").getPublicUrl(path).data.publicUrl;
   },

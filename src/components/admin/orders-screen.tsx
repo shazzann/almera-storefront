@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+import Image from "@/components/image";
 import { useMemo, useState } from "react";
 import { formatLKR } from "@/lib/catalog";
 import { useAdmin } from "./admin-app";

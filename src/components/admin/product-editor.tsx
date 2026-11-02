@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+import Image from "@/components/image";
 import { useEffect, useState } from "react";
 import { CheckIcon, ChevronIcon, CloseIcon, PlusIcon } from "@/components/icons";
 import { DENIM_SIZES, SIZES, formatLKR, nameWithColour } from "@/lib/catalog";

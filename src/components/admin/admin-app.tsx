@@ -92,20 +92,21 @@ export function AdminApp({ source }: { source: AdminSource }) {
   const start = useCallback(async () => {
     setStatus("loading");
     try {
-      const auth = await source.check();
-      if (!auth.ok) {
-        setMessage(auth.error);
+      const opened = await source.open();
+      if (!opened.ok) {
+        setMessage(opened.error);
         setStatus("denied");
         return;
       }
-      setEmail(auth.email);
-      await refresh();
+      setEmail(opened.email);
+      setData(opened.data);
+      lastLoad.current = Date.now();
       setStatus("ready");
     } catch (err) {
       setMessage(err instanceof Error ? err.message : "Check your connection and try again.");
       setStatus("failed");
     }
-  }, [source, refresh]);
+  }, [source]);
 
   useEffect(() => {
     const t = setTimeout(start, 0);

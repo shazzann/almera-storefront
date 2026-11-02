@@ -153,7 +153,7 @@ export type OrderStatus =
 
 /** Everything the console needs from the outside world, so screens never touch the server directly. */
 export type AdminSource = {
-  check(): Promise<{ ok: true; email: string } | { ok: false; error: string }>;
+  open(): Promise<{ ok: true; email: string; data: AdminData } | { ok: false; error: string }>;
   load(): Promise<AdminData>;
   saveProduct(payload: ProductPayload): Promise<unknown>;
   setOrderStatus(orderId: string, next: OrderStatus): Promise<unknown>;

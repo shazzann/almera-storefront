@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+import Image from "@/components/image";
 import Link from "next/link";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { Category } from "@/lib/catalog";

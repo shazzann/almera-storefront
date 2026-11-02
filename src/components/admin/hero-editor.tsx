@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+import Image from "@/components/image";
 import { useMemo, useState } from "react";
 import { CheckIcon, ChevronIcon } from "@/components/icons";
 import { HERO_SEASON_MAX, formatLKR } from "@/lib/catalog";

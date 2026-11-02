@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+import Image from "@/components/image";
 import { useState } from "react";
 import { CheckIcon, WhatsAppIcon } from "@/components/icons";
 import { formatLKR } from "@/lib/catalog";

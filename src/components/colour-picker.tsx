@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+import Image from "@/components/image";
 import Link from "next/link";
 import type { MouseEvent } from "react";
 import type { Product } from "@/lib/catalog";
