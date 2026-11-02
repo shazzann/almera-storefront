@@ -182,10 +182,10 @@ async function resolveAuthoritativeLines(items: z.infer<typeof orderItemInputSch
   const { data: dbVariants } =
     productIds.length > 0
       ? await supabase
-          .from("product_variants")
-          .select("*")
-          .in("product_id", productIds)
-          .eq("is_active", true)
+        .from("product_variants")
+        .select("*")
+        .in("product_id", productIds)
+        .eq("is_active", true)
       : { data: [] };
 
   const verifiedLines: Array<{

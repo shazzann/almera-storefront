@@ -15,7 +15,8 @@ import {
   upsertCouponAction,
   upsertProductAction,
 } from "@/actions/admin";
-import { optimizeImageToWebP } from "@/lib/image-optimizer";
+import { optimizeImageForUpload } from "@/lib/image-optimizer";
+import { buildImageUrl } from "@/lib/image-url";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import type { AdminData, AdminSource, Coupon, CategoryRow, ProductPayload } from "./lib";
 
@@ -98,12 +99,15 @@ export const realSource: AdminSource = {
   async uploadImage(file, folder) {
     const sb = getSupabaseBrowserClient();
     if (!sb) throw new Error("Image storage isn't set up.");
-    const optimized = await optimizeImageToWebP(file);
+    const optimized = await optimizeImageForUpload(file);
     const safeName = optimized.name.replace(/[^a-zA-Z0-9._-]/g, "-");
     const path = `${folder}/${Date.now()}-${safeName}`;
-    const { error } = await sb.storage.from("product-images").upload(path, optimized, { contentType: optimized.type, cacheControl: "31536000", upsert: false });
+    const { error } = await sb.storage
+      .from("product-images")
+      .upload(path, optimized, { contentType: optimized.type, cacheControl: "31536000", upsert: false });
     if (error) throw error;
-    return sb.storage.from("product-images").getPublicUrl(path).data.publicUrl;
+    // Store the canonical Edge CDN URL directly in the database
+    return buildImageUrl(path);
   },
   async signOut() {
     await getSupabaseBrowserClient()?.auth.signOut();

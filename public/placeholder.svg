@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1000" width="800" height="1000" fill="none">
+  <rect width="800" height="1000" fill="#f5f2eb"/>
+  <g transform="translate(320, 400)">
+    <!-- Arched wardrobe motif -->
+    <rect x="0" y="0" width="160" height="160" rx="24" fill="#e8e3d8"/>
+    <g fill="none" stroke="#9db7a8" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M45 130V70a35 35 0 0 1 70 0v60"/>
+      <path d="M45 68h70"/>
+      <path d="M80 68v62"/>
+      <path d="M45 105h70"/>
+      <path d="M72 85v8"/>
+      <path d="M88 85v8"/>
+      <path d="M30 130h100" stroke="#5e5c30" stroke-width="4"/>
+    </g>
+  </g>
+  <text x="400" y="605" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" font-size="20" font-weight="500" letter-spacing="4" fill="#7a8a80">
+    ALMERA
+  </text>
+  <text x="400" y="635" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" font-size="13" letter-spacing="1" fill="#a3aca6">
+    IMAGE TEMPORARILY UNAVAILABLE
+  </text>
+</svg>
+

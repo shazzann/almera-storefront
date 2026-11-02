@@ -48,11 +48,13 @@ const MAX_BUCKETS = 5000;
 const buckets = new Map<string, number[]>();
 
 export function getClientIp({ headers }: { headers: Headers }): string {
-  const forwarded = headers.get("x-forwarded-for");
-  if (forwarded) {
-    return forwarded.split(",")[0]?.trim() || "unknown";
-  }
-  return headers.get("x-real-ip")?.trim() || "unknown";
+  return (
+    headers.get("cf-connecting-ip")?.trim() ||
+    headers.get("x-real-ip")?.trim() ||
+    headers.get("x-vercel-ip")?.trim() ||
+    headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    "unknown"
+  );
 }
 
 export function enforceRateLimit(ip: string, config: RateLimitConfig): void {

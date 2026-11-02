@@ -51,4 +51,4 @@ The dashboard lives in `src/components/account`, and `/account-preview` shows it
 
 Password rules are in `src/lib/password-policy.ts`. Set the same minimum in Supabase under Authentication, because customers' browsers can reach Supabase directly with the public key.
 
-Reset links need `CRON_SECRET` or `AUTH_COOKIE_SECRET` set on the server, and the sign-in limits and guest-order linking need the real `SUPABASE_SERVICE_ROLE_KEY`.
+Reset links that need `CRON_SECRET` or `AUTH_COOKIE_SECRET` set on the server, and the sign-in limits and guest-order linking need the real `SUPABASE_SERVICE_ROLE_KEY`.

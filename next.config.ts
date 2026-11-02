@@ -9,7 +9,26 @@ const securityHeaders = [
   { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" },
 ];
 
-const supabaseHost = process.env.NEXT_PUBLIC_SUPABASE_URL ? new URL(process.env.NEXT_PUBLIC_SUPABASE_URL).hostname : null;
+const supabaseHost = process.env.NEXT_PUBLIC_SUPABASE_URL
+  ? new URL(process.env.NEXT_PUBLIC_SUPABASE_URL).hostname
+  : null;
+
+const cdnUrl =
+  process.env.NEXT_PUBLIC_CDN_URL ||
+  process.env.NEXT_PUBLIC_STORAGE_CDN_URL ||
+  process.env.STORAGE_CDN_URL ||
+  process.env.NEXT_PUBLIC_SUPABASE_CDN_URL ||
+  "https://cdn.almera.lk";
+
+const cdnHost = cdnUrl ? new URL(cdnUrl).hostname : "cdn.almera.lk";
+
+const remotePatterns: NonNullable<NonNullable<NextConfig["images"]>["remotePatterns"]> = [
+  { protocol: "https", hostname: cdnHost, pathname: "/**" },
+];
+
+if (supabaseHost && supabaseHost !== cdnHost) {
+  remotePatterns.push({ protocol: "https", hostname: supabaseHost, pathname: "/storage/v1/object/public/**" });
+}
 
 const nextConfig: NextConfig = {
   cacheComponents: true,
@@ -19,7 +38,7 @@ const nextConfig: NextConfig = {
   },
   partialPrefetching: true,
   images: {
-    remotePatterns: supabaseHost ? [{ protocol: "https", hostname: supabaseHost, pathname: "/storage/v1/object/public/**" }] : [],
+    remotePatterns,
     // A short list of widths keeps each photo to a handful of resized copies.
     deviceSizes: [640, 828, 1200],
     imageSizes: [96, 256, 384],
