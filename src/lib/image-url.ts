@@ -142,3 +142,38 @@ export function isCdnUrl(url: string | null | undefined): boolean {
   const supabaseHost = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
   return url.startsWith(cdnHost) || (Boolean(supabaseHost) && url.startsWith(supabaseHost));
 }
+
+/** Widths of the smaller copies saved next to every uploaded WebP photo. The original is up to 1200px. */
+export const IMAGE_VARIANT_WIDTHS = [320, 640] as const;
+
+const VARIANT_SUFFIX = /-w\d+\.webp$/;
+
+/** Only WebP photos get smaller copies; SVG and GIF uploads are kept as they are. */
+export function hasVariants(path: string): boolean {
+  return path.endsWith(".webp") && !VARIANT_SUFFIX.test(path);
+}
+
+/** "products/abc.webp" becomes "products/abc-w640.webp". */
+export function variantPath(path: string, width: number): string {
+  return path.replace(/\.webp$/, `-w${width}.webp`);
+}
+
+/** A photo's own path plus its smaller copies, for deleting them together. */
+export function withVariantPaths(paths: string[]): string[] {
+  return paths.flatMap((p) => (hasVariants(p) ? [p, ...IMAGE_VARIANT_WIDTHS.map((w) => variantPath(p, w))] : [p]));
+}
+
+/** The smallest stored copy that is at least `width` pixels wide, falling back to the original. */
+export function cdnImageForWidth(url: string, width: number): string {
+  const [base, query] = url.split("?");
+  if (!hasVariants(base)) return url;
+  const fit = IMAGE_VARIANT_WIDTHS.find((w) => width <= w);
+  if (!fit) return url;
+  return variantPath(base, fit) + (query ? `?${query}` : "");
+}
+
+/** The original photo behind a smaller copy's address, or null if it isn't one. */
+export function originalOfVariant(url: string): string | null {
+  const [base] = url.split("?");
+  return VARIANT_SUFFIX.test(base) ? base.replace(VARIANT_SUFFIX, ".webp") : null;
+}

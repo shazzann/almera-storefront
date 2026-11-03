@@ -18,7 +18,7 @@ import {
 import { restoreStock, type StockItem } from "@/lib/stock-helpers.server";
 import { getSupabaseAdmin } from "@/lib/supabase/admin.server";
 import sharp from "sharp";
-import { buildImageUrl, getStoragePath } from "@/lib/image-url";
+import { IMAGE_VARIANT_WIDTHS, buildImageUrl, getStoragePath, hasVariants, variantPath, withVariantPaths } from "@/lib/image-url";
 
 function buildFrontendCategoryRows() {
   return frontendCategories.map((c, idx) => {
@@ -296,7 +296,7 @@ export async function upsertProductAction(
       .filter((p): p is string => Boolean(p));
 
     if (pathsToRemove.length > 0) {
-      await supabase.storage.from("product-images").remove(pathsToRemove);
+      await supabase.storage.from("product-images").remove(withVariantPaths(pathsToRemove));
     }
   }
 
@@ -327,7 +327,7 @@ export async function deleteProductAction(
       .filter((p): p is string => Boolean(p));
 
     if (pathsToRemove.length > 0) {
-      await supabase.storage.from("product-images").remove(pathsToRemove);
+      await supabase.storage.from("product-images").remove(withVariantPaths(pathsToRemove));
     }
   }
 
@@ -761,7 +761,7 @@ export async function upsertCategoryAction(
   if (existingCat?.image_url && existingCat.image_url !== payload.image_url) {
     const oldPath = getStoragePath(existingCat.image_url);
     if (oldPath) {
-      await supabase.storage.from("product-images").remove([oldPath]);
+      await supabase.storage.from("product-images").remove(withVariantPaths([oldPath]));
     }
   }
 
@@ -944,6 +944,18 @@ export async function uploadProductImageAction(
 
     if (uploadError) {
       return { ok: false, error: uploadError.message };
+    }
+
+    // Smaller copies for thumbnails and phone grids. The store falls back to the original if one is missing.
+    if (hasVariants(path)) {
+      await Promise.all(
+        IMAGE_VARIANT_WIDTHS.map(async (width) => {
+          const small = await sharp(outputBuffer).resize({ width, withoutEnlargement: true }).webp({ quality: 80 }).toBuffer();
+          await supabase.storage
+            .from("product-images")
+            .upload(variantPath(path, width), small, { contentType: "image/webp", cacheControl: "31536000", upsert: true });
+        }),
+      ).catch((err) => console.error("[upload] Smaller copies failed:", err));
     }
 
     const url = buildImageUrl(path);

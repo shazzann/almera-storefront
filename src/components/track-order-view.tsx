@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "@/components/image";
+import { OrderItemPhoto } from "@/components/order-item-photo";
 import Link from "next/link";
 import { useState, type FormEvent } from "react";
 import { lookupOrderAction, type TrackedOrderResult } from "@/actions/orders";
@@ -287,14 +287,7 @@ export function TrackOrderView() {
               {order.items.map((item) => (
                 <li key={item.id} className="flex items-center gap-4 py-3">
                   <span className="relative h-16 w-12 shrink-0 overflow-hidden rounded-lg bg-sage-soft">
-                    <Image
-                      src={item.image_url || "/placeholder.svg"}
-                      alt={item.product_name || ""}
-                      fill
-                      sizes="48px"
-                      loading="lazy"
-                      className="object-cover"
-                    />
+                    <OrderItemPhoto src={item.image_url} alt={item.product_name || ""} sizes="48px" compact />
                   </span>
                   <div className="min-w-0 flex-1 text-sm">
                     <Link

@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "@/components/image";
+import { OrderItemPhoto } from "@/components/order-item-photo";
 import { useMemo, useState } from "react";
 import { formatLKR } from "@/lib/catalog";
 import { useAdmin } from "./admin-app";
@@ -79,7 +79,7 @@ export function OrderCard({ order: o }: { order: Order }) {
           <span className="flex shrink-0 -space-x-3">
             {thumbs.map((it) => (
               <span key={it.id} className="relative size-11 overflow-hidden rounded-lg border-2 border-ivory bg-sage-soft">
-                <Image src={it.image_url!} alt="" fill sizes="44px" className="object-cover" />
+                <OrderItemPhoto src={it.image_url} sizes="44px" compact />
               </span>
             ))}
           </span>

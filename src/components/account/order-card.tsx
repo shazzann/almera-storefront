@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "@/components/image";
+import { OrderItemPhoto } from "@/components/order-item-photo";
 import Link from "next/link";
 import { ChevronIcon } from "@/components/icons";
 import { formatLKR } from "@/lib/catalog";
@@ -25,12 +25,12 @@ export function OrderCard({ order }: { order: AccountOrder }) {
         <span className="relative h-[4.5rem] w-14 shrink-0">
           {photos.length === 0 && (
             <span className="arch-soft absolute inset-0 overflow-hidden bg-sage-soft">
-              <Image src="/placeholder.svg" alt="" fill sizes="56px" className="object-cover opacity-60" />
+              <OrderItemPhoto src={null} sizes="56px" compact />
             </span>
           )}
           {photos.map((it, i) => (
             <span key={it.id} className="arch-soft absolute inset-0 overflow-hidden bg-sage-soft ring-2 ring-ivory" style={{ transform: `translateX(${i * 5}px) scale(${1 - i * 0.08})`, zIndex: 3 - i }}>
-              <Image src={it.image_url!} alt="" fill sizes="56px" className="object-cover" />
+              <OrderItemPhoto src={it.image_url} sizes="56px" compact />
             </span>
           ))}
         </span>
