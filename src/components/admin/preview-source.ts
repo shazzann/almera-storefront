@@ -198,7 +198,7 @@ export const previewSource: AdminSource = {
   },
   async deleteCoupon(id) {
     await pause();
-    data.coupons = data.coupons.filter((c) => c.id !== id);
+    data.coupons = data.coupons.filter((c) => c.id !== id && c.code !== id);
   },
   async saveCategory(c) {
     await pause();

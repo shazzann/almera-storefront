@@ -67,6 +67,34 @@ function AnnouncementBar() {
   );
 }
 
+function AccountLink({
+  currentUser,
+  className = "",
+}: {
+  currentUser: { id: string; email?: string } | null;
+  className?: string;
+}) {
+  return (
+    <Link
+      href={!currentUser ? "/account/login" : isAdminEmail(currentUser.email) ? "/admin" : "/account"}
+      className={`relative grid size-11 place-items-center rounded-full hover:bg-ivory ${className}`}
+      aria-label={!currentUser ? "Sign in" : isAdminEmail(currentUser.email) ? "Admin console" : "My account"}
+      title={
+        currentUser
+          ? currentUser.email
+            ? `Account (${currentUser.email})`
+            : "My account"
+          : "Sign in"
+      }
+    >
+      <UserIcon className="size-5" />
+      {currentUser && (
+        <span className="absolute top-2.5 right-2.5 size-1.5 rounded-full bg-sage-deep" />
+      )}
+    </Link>
+  );
+}
+
 export function Header({
   categoryList = defaultCategories,
 }: {
@@ -126,7 +154,7 @@ export function Header({
         }`}
       >
         <div className="relative mx-auto flex h-16 max-w-7xl items-center justify-between px-3 sm:h-20 sm:px-6 lg:grid lg:grid-cols-[1fr_auto_1fr]">
-          <div className="flex h-full items-center">
+          <div className="flex h-full items-center gap-0.5 lg:gap-0">
             <button
               onClick={() => setMenuOpen(true)}
               className="grid size-11 place-items-center rounded-full hover:bg-ivory lg:hidden"
@@ -134,6 +162,7 @@ export function Header({
             >
               <MenuIcon />
             </button>
+            <AccountLink currentUser={currentUser} className="lg:hidden" />
             <nav className="hidden h-full items-center gap-7 lg:flex" aria-label="Main">
               <Link
                 href="/shop"
@@ -204,7 +233,7 @@ export function Header({
           <Link
             href="/"
             aria-label="almera home"
-            className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 px-2 lg:static lg:top-auto lg:left-auto lg:translate-x-0 lg:translate-y-0 lg:justify-self-center"
+            className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 px-1 sm:px-2 lg:static lg:top-auto lg:left-auto lg:translate-x-0 lg:translate-y-0 lg:justify-self-center"
           >
             <Wordmark />
           </Link>
@@ -237,23 +266,7 @@ export function Header({
             >
               <SearchIcon />
             </button>
-            <Link
-              href={!currentUser ? "/account/login" : isAdminEmail(currentUser.email) ? "/admin" : "/account"}
-              className="relative hidden size-11 place-items-center rounded-full hover:bg-ivory lg:grid"
-              aria-label={!currentUser ? "Sign in" : isAdminEmail(currentUser.email) ? "Admin console" : "My account"}
-              title={
-                currentUser
-                  ? currentUser.email
-                    ? `Account (${currentUser.email})`
-                    : "My account"
-                  : "Sign in"
-              }
-            >
-              <UserIcon className="size-5" />
-              {currentUser && (
-                <span className="absolute top-2.5 right-2.5 size-1.5 rounded-full bg-sage-deep" />
-              )}
-            </Link>
+            <AccountLink currentUser={currentUser} className="hidden lg:grid" />
             <button
               onClick={cart.open}
               className="relative grid size-11 place-items-center rounded-full hover:bg-ivory"

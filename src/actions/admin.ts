@@ -702,26 +702,41 @@ export async function upsertCouponAction(
 
 export async function deleteCouponAction(
   accessToken: string | null | undefined,
-  couponId: string,
+  couponIdOrCode: string,
 ) {
   const admin = await assertAdmin(accessToken);
   const supabase = getSupabaseAdmin(accessToken);
 
-  const { data: existing } = await supabase
-    .from("coupons")
-    .select("id, code")
-    .eq("id", couponId)
-    .maybeSingle();
+  const identifier = couponIdOrCode?.trim();
+  if (!identifier) {
+    throw new Error("Coupon identifier is required.");
+  }
 
-  const { error } = await supabase.from("coupons").delete().eq("id", couponId);
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(identifier);
+
+  const selectQuery = supabase.from("coupons").select("id, code");
+  const { data: existing, error: selectErr } = isUuid
+    ? await selectQuery.eq("id", identifier).maybeSingle()
+    : await selectQuery.eq("code", identifier.toUpperCase()).maybeSingle();
+
+  if (selectErr) throw new Error(selectErr.message);
+
+  const targetId = existing?.id ?? (isUuid ? identifier : null);
+  const targetCode = existing?.code ?? identifier.toUpperCase();
+
+  const deleteQuery = supabase.from("coupons").delete();
+  const { error } = targetId
+    ? await deleteQuery.eq("id", targetId)
+    : await deleteQuery.eq("code", targetCode);
+
   if (error) throw new Error(error.message);
 
   await logAuditEvent({
     userId: admin.userId,
     action: "delete_coupon",
     entityType: "coupon",
-    entityId: couponId,
-    details: { code: existing?.code ?? couponId },
+    entityId: targetId ?? identifier,
+    details: { code: targetCode },
     accessToken,
   });
 
