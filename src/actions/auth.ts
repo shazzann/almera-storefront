@@ -172,6 +172,12 @@ export async function signInWithGoogleAction(nextUrl?: string | null): Promise<A
   redirect(data.url);
 }
 
+/** After Google's own button signs someone in, attach any guest orders placed with their email. */
+export async function completeGoogleSignInAction() {
+  const user = await getCurrentUser();
+  if (user) await linkGuestOrders(user);
+}
+
 export async function signOutAction() {
   const supabase = await createSupabaseServerClient();
   await supabase.auth.signOut();
