@@ -52,3 +52,23 @@ The dashboard lives in `src/components/account`, and `/account-preview` shows it
 Password rules are in `src/lib/password-policy.ts`. Set the same minimum in Supabase under Authentication, because customers' browsers can reach Supabase directly with the public key.
 
 Reset links that need `CRON_SECRET` or `AUTH_COOKIE_SECRET` set on the server, and the sign-in limits and guest-order linking need the real `SUPABASE_SERVICE_ROLE_KEY`.
+
+## Email
+
+All customer email goes through Gmail SMTP with Nodemailer. Templates are in `src/lib/email/templates.ts`.
+
+Sent: sign-up confirmation, password reset, order placed (with the advance and bank details when a COD order needs them), shipped, delivered, plus advance receipt, confirmed, cancelled and refunded.
+
+Set these wherever the site runs, and in `.env.local` for development:
+
+```
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=465
+SMTP_SECURE=true
+SMTP_USER=the Gmail address
+SMTP_PASSWORD=a Google app password, not the normal Gmail password
+MAIL_FROM=the same Gmail address
+MAIL_FROM_NAME=almera
+```
+
+Gmail allows about 500 emails a day. Without these settings, sign-up and reset fall back to Supabase's own mailer, and order emails are skipped.

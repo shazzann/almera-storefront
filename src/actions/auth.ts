@@ -3,10 +3,13 @@
 import { createClient } from "@supabase/supabase-js";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 import { z } from "zod";
 import { ADDRESS_COLUMNS, linkGuestOrders } from "@/lib/account.server";
 import { getCurrentUser, requireUser } from "@/lib/auth.server";
 import { DISTRICTS } from "@/lib/catalog";
+import { getSiteUrl, isEmailConfigured, sendEmail } from "@/lib/email/mailer.server";
+import { passwordResetEmail, signupConfirmationEmail } from "@/lib/email/templates";
 import { isBreachedPassword } from "@/lib/password-breach.server";
 import { passwordProblem, type PasswordContext } from "@/lib/password-policy";
 import {
@@ -17,6 +20,7 @@ import {
 } from "@/lib/rate-limit.server";
 import { clearPasswordRecovery, hasPasswordRecovery } from "@/lib/recovery.server";
 import { safeNextPath } from "@/lib/safe-redirect";
+import { getSupabaseAdmin } from "@/lib/supabase/admin.server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 /**
@@ -90,15 +94,31 @@ export async function signUpAction(rawInput: z.input<typeof signUpSchema>): Prom
   if (!(await allowAuthAttempt(ip, AUTH_SIGNUP_RATE_LIMIT))) return { ok: false, error: TOO_MANY };
   if (!(await allowAuthAttempt(email, AUTH_LIMITS.signupEmail))) return { ok: true, message };
 
+  const profile = { full_name: name, name, phone: normalizePhone(phone) };
   const supabase = await createSupabaseServerClient();
-  const { error } = await supabase.auth.signUp({
-    email,
-    password,
-    options: {
-      emailRedirectTo: `${origin}/auth/callback?next=/account`,
-      data: { full_name: name, name, phone: normalizePhone(phone) },
-    },
-  });
+  let error;
+  if (isEmailConfigured()) {
+    const generated = await getSupabaseAdmin().auth.admin.generateLink({
+      type: "signup",
+      email,
+      password,
+      options: { data: profile },
+    });
+    error = generated.error;
+    const tokenHash = generated.data?.properties?.hashed_token;
+    if (!error && tokenHash) {
+      const siteUrl = getSiteUrl();
+      const url = `${siteUrl}/auth/confirm?token_hash=${encodeURIComponent(tokenHash)}&type=signup`;
+      // After the reply, so a new email doesn't answer more slowly than a registered one.
+      after(() => sendEmail(email, signupConfirmationEmail({ name, url, siteUrl })));
+    }
+  } else {
+    ({ error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { emailRedirectTo: `${origin}/auth/callback?next=/account`, data: profile },
+    }));
+  }
 
   if (error && error.code !== "user_already_exists" && error.code !== "email_exists") {
     if (error.code === "weak_password") return { ok: false, error: BREACHED, fields: { password: BREACHED } };
@@ -175,10 +195,21 @@ export async function requestPasswordResetAction(rawEmail: string): Promise<Auth
   const { ip, origin } = await requestContext();
   if (!(await allowAuthAttempt(ip, AUTH_LIMITS.resetIp))) return { ok: false, error: TOO_MANY };
   if (await allowAuthAttempt(parsed.data, AUTH_LIMITS.resetEmail)) {
-    const supabase = await createSupabaseServerClient();
-    await supabase.auth.resetPasswordForEmail(parsed.data, {
-      redirectTo: `${origin}/auth/callback?next=/account/reset-password`,
-    });
+    if (isEmailConfigured()) {
+      // Unknown emails simply get no link, and the reply stays the same.
+      const generated = await getSupabaseAdmin().auth.admin.generateLink({ type: "recovery", email: parsed.data });
+      const tokenHash = generated.data?.properties?.hashed_token;
+      if (tokenHash) {
+        const siteUrl = getSiteUrl();
+        const url = `${siteUrl}/auth/confirm?token_hash=${encodeURIComponent(tokenHash)}&type=recovery`;
+        after(() => sendEmail(parsed.data, passwordResetEmail({ url, siteUrl })));
+      }
+    } else {
+      const supabase = await createSupabaseServerClient();
+      await supabase.auth.resetPasswordForEmail(parsed.data, {
+        redirectTo: `${origin}/auth/callback?next=/account/reset-password`,
+      });
+    }
   }
   return { ok: true, message };
 }

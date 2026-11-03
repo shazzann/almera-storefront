@@ -1,7 +1,9 @@
 "use server";
 
+import { after } from "next/server";
 import { z } from "zod";
 import { assertAdmin, logAuditEvent } from "@/lib/admin-auth.server";
+import { notifyCodDepositReceived, notifyOrderStatus } from "@/lib/email/notifications.server";
 import { refreshCategoriesCache, refreshGalleryCache, refreshHeroCache, revalidateCatalogCache } from "@/lib/cache-invalidation.server";
 import {
   categories as frontendCategories,
@@ -423,9 +425,9 @@ export async function updateOrderStatusAction(
   });
 
   if (order.email) {
-    import("@/lib/email/notifications.server")
-      .then(({ notifyOrderStatus }) => notifyOrderStatus(order.id, params.nextStatus))
-      .catch(() => {});
+    after(() =>
+      notifyOrderStatus(order.id, params.nextStatus).catch((e) => console.error("[order] Status email failed:", e)),
+    );
   }
 
   return updated;
@@ -489,9 +491,9 @@ export async function recordBankDepositAction(
   });
 
   if (order.email && params.depositAmount > 0) {
-    import("@/lib/email/notifications.server")
-      .then(({ notifyCodDepositReceived }) => notifyCodDepositReceived(order.id))
-      .catch(() => {});
+    after(() =>
+      notifyCodDepositReceived(order.id).catch((e) => console.error("[order] Deposit email failed:", e)),
+    );
   }
 
   return updated;

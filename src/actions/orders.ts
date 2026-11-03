@@ -1,6 +1,7 @@
 "use server";
 
 import { headers } from "next/headers";
+import { after } from "next/server";
 import { z } from "zod";
 import {
   DISTRICTS,
@@ -12,6 +13,7 @@ import {
 } from "@/lib/catalog";
 import { revalidateCatalogCache } from "@/lib/cache-invalidation.server";
 import { requiresCodDeposit } from "@/lib/cod-deposit";
+import { notifyOrderPlaced } from "@/lib/email/notifications.server";
 import {
   COUPON_RATE_LIMIT,
   ORDER_RATE_LIMIT,
@@ -515,9 +517,9 @@ export async function placeOrderAction(rawInput: PlaceOrderInput) {
   // Send confirmation email immediately only for non-card orders.
   // Card orders get their confirmation email sent via the webhook upon payment.succeeded!
   if (!isCard && cleanEmail) {
-    import("@/lib/email/notifications.server")
-      .then(({ notifyOrderPlaced }) => notifyOrderPlaced(createdOrder.id))
-      .catch((e) => console.error("[order] Email notification failed:", e));
+    after(() =>
+      notifyOrderPlaced(createdOrder.id).catch((e) => console.error("[order] Email notification failed:", e)),
+    );
   }
 
   return {
