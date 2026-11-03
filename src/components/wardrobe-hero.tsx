@@ -56,7 +56,8 @@ export function WardrobeHero({ image, cover, season }: { image: string; cover?: 
                 src={image}
                 alt={cover?.name ?? "Model in a jade tiered lehenga seated beneath an arched window"}
                 fill
-                preload
+                loading="eager"
+                fetchPriority="high"
                 sizes="(min-width: 1024px) 30rem, 92vw"
                 className="animate-settle object-cover object-[50%_30%]"
               />

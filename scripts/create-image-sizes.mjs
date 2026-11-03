@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * Creates the 320px and 640px copies (name-w320.webp, name-w640.webp) for every WebP photo in
+ * Creates the 320px, 640px and 960px copies (name-w320.webp, name-w640.webp, name-w960.webp) for every WebP photo in
  * storage that doesn't have them yet. New uploads get them automatically; this covers older photos.
  *
  * Usage:
@@ -36,7 +36,7 @@ loadEnv();
 const isLive = process.argv.includes("--live");
 const BUCKET = "product-images";
 // Keep in sync with IMAGE_VARIANT_WIDTHS in src/lib/image-url.ts.
-const WIDTHS = [320, 640];
+const WIDTHS = [320, 640, 960];
 const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 

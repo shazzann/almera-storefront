@@ -144,7 +144,7 @@ export function isCdnUrl(url: string | null | undefined): boolean {
 }
 
 /** Widths of the smaller copies saved next to every uploaded WebP photo. The original is up to 1200px. */
-export const IMAGE_VARIANT_WIDTHS = [320, 640] as const;
+export const IMAGE_VARIANT_WIDTHS = [320, 640, 960] as const;
 
 const VARIANT_SUFFIX = /-w\d+\.webp$/;
 

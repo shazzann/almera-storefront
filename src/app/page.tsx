@@ -62,7 +62,7 @@ export default async function Home() {
                 {lehengas.map((p) => (
                   <Link key={p.slug} href={`/product/${p.slug}`} className="group">
                     <div className="arch-soft relative aspect-[3/4] overflow-hidden bg-olive">
-                      <Image src={p.images[0]} alt={p.name} fill sizes="(min-width: 1024px) 12vw, 30vw" className="object-cover transition duration-1000 group-hover:scale-105" />
+                      <Image src={p.images[0]} alt="" fill sizes="(min-width: 1024px) 12vw, 30vw" className="object-cover transition duration-1000 group-hover:scale-105" />
                     </div>
                     <p className="mt-2 text-[0.8rem] leading-snug text-ivory/80 group-hover:text-sage">{p.name}</p>
                   </Link>

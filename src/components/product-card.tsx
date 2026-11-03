@@ -87,7 +87,7 @@ export function ProductCard({
         )}
       </div>
       <div className="px-0.5 pt-3.5">
-        <p className="text-[0.65rem] font-semibold tracking-[0.14em] text-ink/50 uppercase">
+        <p className="text-[0.65rem] font-semibold tracking-[0.14em] text-ink/70 uppercase">
           {options.length === 2
             ? "Stitched or unstitched"
             : options[0] === "stitched"
@@ -98,11 +98,11 @@ export function ProductCard({
           {p.name}
         </h3>
         <p className="mt-1 text-[0.9rem]">
-          {options.length > 1 && <span className="text-ink/55">From </span>}
+          {options.length > 1 && <span className="text-ink/70">From </span>}
           <span className={`whitespace-nowrap font-semibold ${was ? "text-bark" : ""}`}>
             {formatLKR(from)}
           </span>
-          {was && <s className="ml-2 text-[0.8rem] whitespace-nowrap text-ink/40">{formatLKR(was)}</s>}
+          {was && <s className="ml-2 text-[0.8rem] whitespace-nowrap text-ink/70">{formatLKR(was)}</s>}
         </p>
       </div>
     </Link>

@@ -9,7 +9,7 @@ function unsplashLoader({ src, width, quality }: ImageLoaderProps) {
   return `${src}${src.includes("?") ? "&" : "?"}w=${width}&q=${quality ?? 75}&auto=format&fit=crop`;
 }
 
-/** Our CDN keeps 320px and 640px copies of every photo, so phones download only what they can show. */
+/** Our CDN keeps 320px, 640px and 960px copies of every photo, so phones download only what they can show. */
 function cdnLoader({ src, width }: ImageLoaderProps) {
   return cdnImageForWidth(src, width);
 }
