@@ -128,7 +128,7 @@ export default async function Home() {
             <figure key={n.name} className="flex w-[82vw] shrink-0 snap-start flex-col rounded-[1.5rem] border border-line bg-ivory p-7 md:w-auto">
               <WardrobeMark className="h-8 w-auto self-start text-gold" />
               <blockquote className="display mt-5 flex-1 text-[1.6rem] leading-[1.15] normal-case italic">“{n.quote}”</blockquote>
-              <figcaption className="mt-6 text-sm text-ink/60">
+              <figcaption className="mt-6 text-sm text-ink/70">
                 <span className="font-semibold text-ink">{n.name}</span> · {n.city}
               </figcaption>
             </figure>
@@ -188,11 +188,11 @@ function StitchCard({ image, label, title, points, href, cta, accent }: { image:
         <Image src={image} alt="" fill sizes="(min-width: 768px) 18vw, 36vw" className="object-cover" />
       </div>
       <div className="flex flex-col p-5 sm:p-8">
-        <p className={`eyebrow flex items-center gap-2 ${accent ? "text-sage" : "text-gold-deep"}`}>
+        <p className={`eyebrow flex items-center gap-2 ${accent ? "text-sage-soft" : "text-gold-deep"}`}>
           <NeedleIcon className="size-4" /> {label}
         </p>
         <h3 className="display mt-3 text-[1.85rem] sm:text-4xl">{title}</h3>
-        <ul className={`mt-4 space-y-2 text-[0.9rem] leading-snug ${accent ? "text-ivory/75" : "text-ink/70"}`}>
+        <ul className={`mt-4 space-y-2 text-[0.9rem] leading-snug ${accent ? "text-ivory/90" : "text-ink/70"}`}>
           {points.map((p) => (
             <li key={p} className="flex gap-2">
               <span className={`mt-[0.45rem] size-1 shrink-0 rounded-full ${accent ? "bg-sage" : "bg-gold"}`} />

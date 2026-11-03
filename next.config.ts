@@ -45,8 +45,8 @@ const nextConfig: NextConfig = {
   images: {
     remotePatterns,
     // A short list of widths keeps each photo to a handful of resized copies.
-    deviceSizes: [640, 828, 1200],
-    imageSizes: [96, 256, 384],
+    deviceSizes: [640, 960, 1200],
+    imageSizes: [96, 160, 320],
     // Uploaded photos get a new name each time, so a resized copy never goes out of date.
     minimumCacheTTL: 2678400,
   },
