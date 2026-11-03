@@ -29,6 +29,12 @@ export function Sheet({
 }) {
   const panel = useRef<HTMLDivElement>(null);
   const opener = useRef<Element | null>(null);
+  // Kept in a ref: pages often pass a new function on every keystroke, and re-running the
+  // effect below would pull focus out of the field being typed in.
+  const closeRef = useRef(onClose);
+  useEffect(() => {
+    closeRef.current = onClose;
+  });
 
   useEffect(() => {
     if (!open) return;
@@ -36,14 +42,14 @@ export function Sheet({
     panel.current?.focus({ preventScroll: true });
     const prev = document.documentElement.style.overflow;
     document.documentElement.style.overflow = "hidden";
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && closeRef.current();
     window.addEventListener("keydown", onKey);
     return () => {
       document.documentElement.style.overflow = prev;
       window.removeEventListener("keydown", onKey);
       (opener.current as HTMLElement | null)?.focus?.({ preventScroll: true });
     };
-  }, [open, onClose]);
+  }, [open]);
 
   return (
     <div className="fixed inset-0 z-[60] pointer-events-none" inert={!open} aria-hidden={!open}>
