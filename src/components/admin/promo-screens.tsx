@@ -147,7 +147,12 @@ export function PromoEditor({ id }: { id: string | null }) {
 
   async function remove() {
     setSaving(true);
-    const ok = await run(() => source.deleteCoupon(existing!.id!), `${existing!.code} deleted`);
+    const target = existing?.id || existing?.code || id;
+    if (!target) {
+      setSaving(false);
+      return;
+    }
+    const ok = await run(() => source.deleteCoupon(target), `${existing?.code ?? code} deleted`);
     setSaving(false);
     if (ok) {
       setConfirmDelete(false);
@@ -161,7 +166,7 @@ export function PromoEditor({ id }: { id: string | null }) {
         title={existing ? "Edit promo code" : "New promo code"}
         onBack={() => back({ view: "promos" })}
         right={
-          existing?.id && (
+          (existing?.id || existing?.code) && (
             <IconButton label="Delete promo code" onClick={() => setConfirmDelete(true)}>
               <TrashIcon className="size-5 text-[#a5432f]" />
             </IconButton>

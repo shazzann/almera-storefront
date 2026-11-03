@@ -9,9 +9,15 @@ function createSupabaseFetch(apiKey: string, bearerToken?: string): typeof fetch
     if (init?.headers) {
       new Headers(init.headers).forEach((v, k) => headers.set(k, v));
     }
-    headers.set("Authorization", `Bearer ${bearerToken || apiKey}`);
-    headers.set("apikey", apiKey);
-    return fetch(input, { ...init, headers });
+    if (bearerToken) {
+      headers.set("Authorization", `Bearer ${bearerToken}`);
+    } else if (!headers.has("Authorization")) {
+      headers.set("Authorization", `Bearer ${apiKey}`);
+    }
+    if (!headers.has("apikey")) {
+      headers.set("apikey", apiKey);
+    }
+    return fetch(input, { ...init, headers, cache: "no-store" });
   };
 }
 
@@ -44,7 +50,7 @@ export function getSupabaseAdmin(accessToken?: string | null): SupabaseClient {
 
   // If SUPABASE_SERVICE_ROLE_KEY is set to a publishable key and an admin user's JWT is provided,
   // authenticate requests with the admin user's JWT so RLS admin policies apply.
-  const isPublishableKey = key.startsWith("sb_publishable_");
+  const isPublishableKey = !serviceKey || key.startsWith("sb_publishable_") || key.startsWith("eyJ");
   if (accessToken && isPublishableKey) {
     return createClient(url, key, {
       global: { fetch: createSupabaseFetch(key, accessToken) },

@@ -17,10 +17,10 @@ export function WardrobeMark(props: SVGProps<SVGSVGElement>) {
 
 export function Wordmark({ className = "", tagline = true }: { className?: string; tagline?: boolean }) {
   return (
-    <span className={`inline-flex flex-col items-center leading-none ${className}`}>
+    <span className={`inline-flex flex-col items-center leading-none whitespace-nowrap ${className}`}>
       <span className="display text-[1.9rem] tracking-[0.01em] text-olive sm:text-[2.2rem]">almera</span>
       {tagline && (
-        <span className="mt-1 text-[0.55rem] font-medium uppercase tracking-[0.42em] text-gold-deep">
+        <span className="mt-1 text-[0.52rem] font-medium uppercase tracking-[0.34em] text-gold-deep sm:text-[0.55rem] sm:tracking-[0.42em]">
           the desi wardrobe
         </span>
       )}
