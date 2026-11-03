@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { formatLKR, startingPrice, stitchingOptions, type Product } from "@/lib/catalog";
 
-const FALLBACK_IMAGE = "https://images.unsplash.com/photo-1745313452052-0e4e341f326c";
+const FALLBACK_IMAGE = "/placeholder.svg";
 
 /** Photos already on screen once skip the fade-in, so coming back to a tab doesn't look like a reload. */
 const shownPhotos = new Set<string>();

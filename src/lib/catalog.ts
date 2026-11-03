@@ -1,3 +1,5 @@
+import { buildImageUrl } from "./image-url";
+
 export type CategorySlug =
   | "day-to-day"
   | "signature-styles"
@@ -49,7 +51,8 @@ export type Product = {
   colourGroup?: string;
 };
 
-const u = (id: string) => `https://images.unsplash.com/photo-${id}`;
+/** Fixed site photos, stored on our CDN under their original photo ids. */
+const u = (id: string) => buildImageUrl(`site/${id}.webp`);
 
 export const texture = {
   goldThread: u("1763400234383-8b9ecbb9c043"),

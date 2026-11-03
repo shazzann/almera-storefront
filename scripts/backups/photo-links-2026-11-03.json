@@ -1,0 +1,374 @@
+{
+  "products": [
+    {
+      "id": "bfa69c55-fd16-4493-b398-eb0b56038f5e",
+      "slug": "emerald-garden-lawn",
+      "images": [
+        "https://images.unsplash.com/photo-1597983073750-16f5ded1321f",
+        "https://images.unsplash.com/photo-1720982018719-f2666caf447a"
+      ]
+    },
+    {
+      "id": "95f4f37b-3dad-49fe-a88a-449c8336a5af",
+      "slug": "plum-jacquard-lawn",
+      "images": [
+        "https://images.unsplash.com/photo-1733731402869-57e0cce24aea",
+        "https://images.unsplash.com/photo-1717586756136-d9a3eeb1fa6f"
+      ]
+    },
+    {
+      "id": "a1e0ea9c-0c8e-45a7-b2f3-adfef64ada79",
+      "slug": "agha-noor",
+      "images": [
+        "https://cdn.almera.lk/storage/v1/object/public/product-images/products/1793628824867-336183.webp"
+      ]
+    },
+    {
+      "id": "5e6306ab-fee1-4a3a-b2ae-bc05f7081453",
+      "slug": "rose-floral-co-ord",
+      "images": [
+        "https://images.unsplash.com/photo-1741847639057-b51a25d42892",
+        "https://images.unsplash.com/photo-1717586756136-d9a3eeb1fa6f"
+      ]
+    },
+    {
+      "id": "32f4efe5-1a22-4474-8e11-8864d721d7bb",
+      "slug": "blush-two-piece",
+      "images": [
+        "https://images.unsplash.com/photo-1733209484732-6b094322a89f",
+        "https://images.unsplash.com/photo-1720982892402-5380e855320c"
+      ]
+    },
+    {
+      "id": "82942c7b-a967-4b1a-a0ab-09fb5d4f7e4e",
+      "slug": "classic-straight-jeans",
+      "images": [
+        "https://images.unsplash.com/photo-1598554747436-c9293d6a588f",
+        "https://images.unsplash.com/photo-1721637286605-ae9be19d681f"
+      ]
+    },
+    {
+      "id": "b1d3b6fe-023c-4506-af1f-0e9411e6f217",
+      "slug": "everyday-skinny-jeans",
+      "images": [
+        "https://images.unsplash.com/photo-1475178626620-a4d074967452",
+        "https://images.unsplash.com/photo-1602293589930-45aad59ba3ab"
+      ]
+    },
+    {
+      "id": "65d41c29-39d8-4b46-aa06-efcb8147779c",
+      "slug": "pakistani-lawn-black",
+      "images": [
+        "https://cdn.almera.lk/storage/v1/object/public/product-images/products/1793625014823-336080.webp",
+        "https://cdn.almera.lk/storage/v1/object/public/product-images/products/1793532640276--r07qxo----R-Download.webp"
+      ]
+    },
+    {
+      "id": "f7fe786f-777b-482c-b799-e67b3a885199",
+      "slug": "ash-grey-lawn-black-dupatta",
+      "images": [
+        "https://images.unsplash.com/photo-1773439878338-c61b0fe9ed48",
+        "https://images.unsplash.com/photo-1773439878281-5aa23c34dcaa"
+      ]
+    },
+    {
+      "id": "70879914-6d6f-4b26-ba9b-72cc9ba1adcd",
+      "slug": "shawl",
+      "images": [
+        "https://cdn.almera.lk/storage/v1/object/public/product-images/products/1793712952479-image00009COPY-scaled.webp"
+      ]
+    },
+    {
+      "id": "ba99aa9c-976f-4a56-adf2-beefdbd3bc98",
+      "slug": "scarlet-printed-lawn",
+      "images": [
+        "https://images.unsplash.com/photo-1759840278381-bf7d5e332050",
+        "https://images.unsplash.com/photo-1759840278862-ef629e9b0f64"
+      ]
+    },
+    {
+      "id": "9b4d735a-9fb7-41bb-8f07-73ce5194719c",
+      "slug": "cobalt-everyday-lawn",
+      "images": [
+        "https://images.unsplash.com/photo-1780247723311-2dae151784d1",
+        "https://images.unsplash.com/photo-1717585679395-bbe39b5fb6bc"
+      ]
+    },
+    {
+      "id": "894043d1-bfa9-4e28-a041-b0738d2ee0ff",
+      "slug": "fuchsia-summer-lawn",
+      "images": [
+        "https://images.unsplash.com/photo-1776436817748-f8e10a7e75b0",
+        "https://images.unsplash.com/photo-1717586756136-d9a3eeb1fa6f"
+      ]
+    },
+    {
+      "id": "27a6bcff-19bd-4f4a-b520-abd811d39e9c",
+      "slug": "white-muslin-kurta-set",
+      "images": [
+        "https://images.unsplash.com/photo-1733209590486-4ed0bfcbc52a",
+        "https://images.unsplash.com/photo-1720982892402-5380e855320c"
+      ]
+    },
+    {
+      "id": "26e2131f-801e-4f67-b83a-7f7c4a5a324b",
+      "slug": "block-print-kurta-pajama",
+      "images": [
+        "https://images.unsplash.com/photo-1745313452052-0e4e341f326c",
+        "https://images.unsplash.com/photo-1720982018719-f2666caf447a"
+      ]
+    },
+    {
+      "id": "9bf0ca44-4732-413e-827e-0e51c99cbe90",
+      "slug": "tea-pink-bow-set",
+      "images": [
+        "https://images.unsplash.com/photo-1762777777819-4d9aa5529368",
+        "https://images.unsplash.com/photo-1720982018719-f2666caf447a"
+      ]
+    },
+    {
+      "id": "589259fc-3b24-46e3-b6f1-e4b5e37f93f6",
+      "slug": "garden-print-co-ord",
+      "images": [
+        "https://images.unsplash.com/photo-1764928947261-f5687e0faa4a",
+        "https://images.unsplash.com/photo-1720982018719-f2666caf447a"
+      ]
+    },
+    {
+      "id": "99d99c62-f300-4542-8617-afa2861dca59",
+      "slug": "paisley-print-set",
+      "images": [
+        "https://images.unsplash.com/photo-1765529374927-052599af9c82",
+        "https://images.unsplash.com/photo-1717586756136-d9a3eeb1fa6f"
+      ]
+    },
+    {
+      "id": "33891439-748b-43f7-ae49-fb53f7d37c52",
+      "slug": "bagh-print-set",
+      "images": [
+        "https://images.unsplash.com/photo-1767785829347-cc13bd969514",
+        "https://images.unsplash.com/photo-1717585679395-bbe39b5fb6bc"
+      ]
+    },
+    {
+      "id": "6f26e2f3-1b61-4a33-9ed5-b220bf41ce11",
+      "slug": "maroon-chikankari-kurta",
+      "images": [
+        "https://images.unsplash.com/photo-1708534246055-d7b149acb731",
+        "https://images.unsplash.com/photo-1720982892402-5380e855320c"
+      ]
+    },
+    {
+      "id": "12339c8f-d6bd-4142-ac2f-9acb069e90ed",
+      "slug": "jade-tiered-lehenga",
+      "images": [
+        "https://images.unsplash.com/photo-1619715613791-89d35b51ff81",
+        "https://images.unsplash.com/photo-1763400234383-8b9ecbb9c043"
+      ]
+    },
+    {
+      "id": "6103cacd-b01d-46fe-b1e6-850895ca6d28",
+      "slug": "marigold-maroon-lehenga",
+      "images": [
+        "https://images.unsplash.com/photo-1767955694884-d4bf352c23c2",
+        "https://images.unsplash.com/photo-1763400234383-8b9ecbb9c043"
+      ]
+    },
+    {
+      "id": "ad921bb3-2d4e-4f50-96c2-099635a40cb7",
+      "slug": "lilac-garden-lehenga",
+      "images": [
+        "https://images.unsplash.com/photo-1649930055986-ca57250a7fd4",
+        "https://images.unsplash.com/photo-1720982018719-f2666caf447a"
+      ]
+    },
+    {
+      "id": "d3e68f92-e088-4701-8c27-95ef9307f31a",
+      "slug": "crimson-mughal-bridal",
+      "images": [
+        "https://images.unsplash.com/photo-1707576618343-26a1b377ca7a",
+        "https://images.unsplash.com/photo-1724856605022-106d6dd6e842"
+      ]
+    },
+    {
+      "id": "31715136-06d5-4ad9-b732-fd3f859c2f15",
+      "slug": "midnight-mirrorwork-lehenga",
+      "images": [
+        "https://images.unsplash.com/photo-1716504628204-47f2df8d2634",
+        "https://images.unsplash.com/photo-1763400234383-8b9ecbb9c043"
+      ]
+    },
+    {
+      "id": "0dfc43f2-9af1-4e29-9550-83188b1ad532",
+      "slug": "peacock-embroidered-lehenga",
+      "images": [
+        "https://images.unsplash.com/photo-1747847471517-952a3eb93a89",
+        "https://images.unsplash.com/photo-1747847471528-7b95ea7a4c39",
+        "https://images.unsplash.com/photo-1747847472156-82c4cf8338c8"
+      ]
+    },
+    {
+      "id": "1c91cbfe-193f-4db0-9e3a-acd7cd235b01",
+      "slug": "ivory-gold-lehenga",
+      "images": [
+        "https://images.unsplash.com/photo-1701252072712-e939599623f2",
+        "https://images.unsplash.com/photo-1763400234383-8b9ecbb9c043"
+      ]
+    },
+    {
+      "id": "93aaf524-929d-43b5-949f-aba319c929d7",
+      "slug": "white-hakoba-kurta-set",
+      "images": [
+        "https://images.unsplash.com/photo-1652953186915-420ae843d1a8",
+        "https://images.unsplash.com/photo-1652953186433-70052f26c183",
+        "https://images.unsplash.com/photo-1652953186908-44e07a84fb05"
+      ]
+    },
+    {
+      "id": "708d7889-39fe-4894-8f7f-04543e6366df",
+      "slug": "scarlet-thread-hakoba-suit",
+      "images": [
+        "https://images.unsplash.com/photo-1742742459138-253e807f2ed2",
+        "https://images.unsplash.com/photo-1720982018719-f2666caf447a"
+      ]
+    },
+    {
+      "id": "a2cb132c-6d96-46ee-bec5-8c751b2905ff",
+      "slug": "ivory-khushboo-suit",
+      "images": [
+        "https://images.unsplash.com/photo-1733311245658-3bfe7f9438e7",
+        "https://images.unsplash.com/photo-1720982892402-5380e855320c"
+      ]
+    },
+    {
+      "id": "44f566e1-3600-4393-81c0-cec680058cb5",
+      "slug": "mist-khushboo-dress",
+      "images": [
+        "https://images.unsplash.com/photo-1667665970118-f55705003914",
+        "https://images.unsplash.com/photo-1720982018719-f2666caf447a"
+      ]
+    },
+    {
+      "id": "27a7a5ce-0fec-4bc8-adfb-e641573d5931",
+      "slug": "marigold-tiered-rayon-kurta",
+      "images": [
+        "https://images.unsplash.com/photo-1760287363878-1a09af715b80",
+        "https://images.unsplash.com/photo-1720982018719-f2666caf447a"
+      ]
+    },
+    {
+      "id": "48c1fb87-b9a0-4791-a756-aaa66447eba4",
+      "slug": "indigo-paisley-rayon-kurta",
+      "images": [
+        "https://images.unsplash.com/photo-1760287364219-160c234ded00",
+        "https://images.unsplash.com/photo-1717585679395-bbe39b5fb6bc"
+      ]
+    },
+    {
+      "id": "e6ddf877-b1f1-40c1-ab53-28e635704f8d",
+      "slug": "orchid-muslin-kurta-set",
+      "images": [
+        "https://images.unsplash.com/photo-1708534246051-7f47b279e94b",
+        "https://images.unsplash.com/photo-1717586756136-d9a3eeb1fa6f"
+      ]
+    },
+    {
+      "id": "3b502e13-470c-4787-8f2a-9580d16d5196",
+      "slug": "rose-muslin-kurta",
+      "images": [
+        "https://images.unsplash.com/photo-1667665970124-9d2606f4f7f7",
+        "https://images.unsplash.com/photo-1720982892402-5380e855320c"
+      ]
+    },
+    {
+      "id": "d38c4f14-a0e7-462e-9a22-e47f2323e2b2",
+      "slug": "washed-denim-jacket",
+      "images": [
+        "https://images.unsplash.com/photo-1760624294535-40dfdc84a48f",
+        "https://images.unsplash.com/photo-1631112230741-446762ee05ac"
+      ]
+    },
+    {
+      "id": "3da457fc-66a3-4af6-be85-33269002594f",
+      "slug": "indigo-denim-co-ord",
+      "images": [
+        "https://images.unsplash.com/photo-1743356914615-66062f1850e6",
+        "https://images.unsplash.com/photo-1645859610425-f0f4177df5f0"
+      ]
+    },
+    {
+      "id": "92ec3774-f84d-4249-ab03-ebbd5f3f1352",
+      "slug": "rose-zardozi-bridal-lehenga",
+      "images": [
+        "https://images.unsplash.com/photo-1746372283841-dbb3838f9935",
+        "https://images.unsplash.com/photo-1724856605022-106d6dd6e842"
+      ]
+    },
+    {
+      "id": "c6d95c65-8ed3-4d93-a62c-cf49e52862b1",
+      "slug": "powder-blue-embroidered-lawn",
+      "images": [
+        "https://images.unsplash.com/photo-1733470381436-bb5a2a441708",
+        "https://images.unsplash.com/photo-1720982018719-f2666caf447a"
+      ]
+    },
+    {
+      "id": "da0450f0-ca57-46b4-93b1-1188cff7409c",
+      "slug": "lilac-chikan-lawn-3-piece",
+      "images": [
+        "https://images.unsplash.com/photo-1705920824583-0e783235394d",
+        "https://images.unsplash.com/photo-1720982892402-5380e855320c"
+      ]
+    },
+    {
+      "id": "8413c36f-5d7b-4b0f-8529-92e026e963fe",
+      "slug": "white-pakistani-lawn",
+      "images": [
+        "https://cdn.almera.lk/storage/v1/object/public/product-images/products/1793530904054--r07qxo----R-Download.webp"
+      ]
+    }
+  ],
+  "categories": [
+    {
+      "slug": "day-to-day",
+      "image_url": "https://images.unsplash.com/photo-1745313452052-0e4e341f326c"
+    },
+    {
+      "slug": "signature-styles",
+      "image_url": "https://images.unsplash.com/photo-1652953186915-420ae843d1a8"
+    },
+    {
+      "slug": "occasion",
+      "image_url": "https://images.unsplash.com/photo-1746372283841-dbb3838f9935"
+    },
+    {
+      "slug": "pakistani",
+      "image_url": "https://images.unsplash.com/photo-1705920824583-0e783235394d"
+    },
+    {
+      "slug": "casual",
+      "image_url": "https://images.unsplash.com/photo-1764928947261-f5687e0faa4a"
+    },
+    {
+      "slug": "lawns",
+      "image_url": "https://images.unsplash.com/photo-1597983073750-16f5ded1321f"
+    },
+    {
+      "slug": "lux",
+      "image_url": "https://images.unsplash.com/photo-1747847471517-952a3eb93a89"
+    },
+    {
+      "slug": "ready-to-wear",
+      "image_url": "https://images.unsplash.com/photo-1733209484732-6b094322a89f"
+    },
+    {
+      "slug": "western",
+      "image_url": "https://images.unsplash.com/photo-1760624294535-40dfdc84a48f"
+    }
+  ],
+  "hero": {
+    "imageUrl": "https://images.unsplash.com/photo-1597983073750-16f5ded1321f",
+    "seasonText": "Eid & wedding season · 2026",
+    "productSlug": "emerald-garden-lawn"
+  }
+}

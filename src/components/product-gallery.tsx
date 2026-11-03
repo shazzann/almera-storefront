@@ -3,7 +3,7 @@
 import Image from "@/components/image";
 import { useEffect, useRef, useState } from "react";
 
-const FALLBACK_IMAGE = "https://images.unsplash.com/photo-1745313452052-0e4e341f326c";
+const FALLBACK_IMAGE = "/placeholder.svg";
 
 export function ProductGallery({ images, name }: { images: string[]; name: string }) {
   const safeImages = images.length > 0 ? images : [FALLBACK_IMAGE];
