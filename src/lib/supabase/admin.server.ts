@@ -11,7 +11,7 @@ function createSupabaseFetch(apiKey: string, bearerToken?: string): typeof fetch
     }
     headers.set("Authorization", `Bearer ${bearerToken || apiKey}`);
     headers.set("apikey", apiKey);
-    return fetch(input, { ...init, headers });
+    return fetch(input, { ...init, headers, cache: "no-store" });
   };
 }
 

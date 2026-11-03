@@ -125,7 +125,7 @@ export function Header({
             : "bg-mist"
         }`}
       >
-        <div className="mx-auto grid h-16 max-w-7xl grid-cols-[1fr_auto_1fr] items-center px-3 sm:h-20 sm:px-6">
+        <div className="relative mx-auto flex h-16 max-w-7xl items-center justify-between px-3 sm:h-20 sm:px-6 lg:grid lg:grid-cols-[1fr_auto_1fr]">
           <div className="flex h-full items-center">
             <button
               onClick={() => setMenuOpen(true)}
@@ -201,7 +201,11 @@ export function Header({
             </nav>
           </div>
 
-          <Link href="/" aria-label="almera home" className="px-2">
+          <Link
+            href="/"
+            aria-label="almera home"
+            className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 px-2 lg:static lg:top-auto lg:left-auto lg:translate-x-0 lg:translate-y-0 lg:justify-self-center"
+          >
             <Wordmark />
           </Link>
 
@@ -235,7 +239,7 @@ export function Header({
             </button>
             <Link
               href={!currentUser ? "/account/login" : isAdminEmail(currentUser.email) ? "/admin" : "/account"}
-              className="relative grid size-11 place-items-center rounded-full hover:bg-ivory"
+              className="relative hidden size-11 place-items-center rounded-full hover:bg-ivory lg:grid"
               aria-label={!currentUser ? "Sign in" : isAdminEmail(currentUser.email) ? "Admin console" : "My account"}
               title={
                 currentUser

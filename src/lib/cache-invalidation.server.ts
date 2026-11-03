@@ -1,5 +1,5 @@
 import "server-only";
-import { revalidateTag, updateTag } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
 
 export const CACHE_TAGS = {
   products: "catalog:products",
@@ -12,9 +12,11 @@ export const CACHE_TAGS = {
 
 export function revalidateCatalogCache(slugs: string[] = [], categories: string[] = []) {
   try {
-    revalidateTag(CACHE_TAGS.products, "max");
-    for (const slug of slugs) revalidateTag(CACHE_TAGS.product(slug), "max");
-    for (const cat of categories) revalidateTag(CACHE_TAGS.category(cat), "max");
+    updateTag(CACHE_TAGS.products);
+    for (const slug of slugs) updateTag(CACHE_TAGS.product(slug));
+    for (const cat of categories) updateTag(CACHE_TAGS.category(cat));
+    revalidatePath("/", "layout");
+    revalidatePath("/shop", "layout");
   } catch {
     // Ignore when called outside request context
   }

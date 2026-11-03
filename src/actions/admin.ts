@@ -300,6 +300,7 @@ export async function upsertProductAction(
     }
   }
 
+
   revalidateCatalogCache([data.slug], data.categories);
   return data;
 }
@@ -339,6 +340,28 @@ export async function deleteProductAction(
     details: { name: data.name, slug: data.slug },
     accessToken,
   });
+  // If the deleted product was selected as homepage hero, reset it
+  const { data: heroRow } = await supabase
+    .from("site_settings")
+    .select("value")
+    .eq("key", "hero")
+    .maybeSingle();
+
+  if (heroRow?.value && (heroRow.value as { productSlug?: string }).productSlug === data.slug) {
+    await supabase
+      .from("site_settings")
+      .update({
+        value: {
+          ...(heroRow.value as object),
+          productSlug: null,
+          imageUrl: null,
+        },
+        updated_at: new Date().toISOString(),
+      })
+      .eq("key", "hero");
+    refreshHeroCache();
+  }
+
 
   revalidateCatalogCache([data.slug], data.categories);
   return { success: true };
