@@ -15,12 +15,31 @@ export function WardrobeMark(props: SVGProps<SVGSVGElement>) {
   );
 }
 
-export function Wordmark({ className = "", tagline = true }: { className?: string; tagline?: boolean }) {
+export function Wordmark({
+  className = "",
+  tagline = true,
+  tone = "default",
+}: {
+  className?: string;
+  tagline?: boolean;
+  tone?: "default" | "sage";
+}) {
+  const onSage = tone === "sage";
   return (
     <span className={`inline-flex flex-col items-center leading-none whitespace-nowrap ${className}`}>
-      <span className="display text-[1.9rem] tracking-[0.01em] text-olive sm:text-[2.2rem]">almera</span>
+      <span
+        className={`display text-[1.9rem] tracking-[0.01em] sm:text-[2.2rem] ${
+          onSage ? "text-ivory" : "text-ink"
+        }`}
+      >
+        almera
+      </span>
       {tagline && (
-        <span className="mt-1 text-[0.52rem] font-medium uppercase tracking-[0.34em] text-gold-deep sm:text-[0.55rem] sm:tracking-[0.42em]">
+        <span
+          className={`mt-1 text-[0.52rem] font-medium uppercase tracking-[0.34em] sm:text-[0.55rem] sm:tracking-[0.42em] ${
+            onSage ? "text-sage-deep" : "text-sage-deep"
+          }`}
+        >
           the desi wardrobe
         </span>
       )}

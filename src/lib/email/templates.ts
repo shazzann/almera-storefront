@@ -81,7 +81,7 @@ function layout(options: { eyebrow: string; title: string; preview: string; body
 <div style="display:none;max-height:0;overflow:hidden;opacity:0;">${escapeHtml(preview)}</div>
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#eef1e9;"><tr><td align="center" style="padding:24px 12px;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;">
-<tr><td align="center" style="padding:4px 0 18px;"><a href="${escapeHtml(siteUrl)}" style="font-family:Georgia,'Times New Roman',serif;font-size:30px;color:${INK};text-decoration:none;">almera</a><div style="margin-top:2px;font-family:${SANS};font-size:9px;letter-spacing:3px;color:${GOLD};text-transform:uppercase;">The Desi Wardrobe</div></td></tr>
+<tr><td align="center" style="padding:4px 0 18px;"><a href="${escapeHtml(siteUrl)}" style="font-family:Georgia,'Times New Roman',serif;font-size:30px;color:${INK};text-decoration:none;">almera</a><div style="margin-top:2px;font-family:${SANS};font-size:9px;letter-spacing:3px;color:#4f6e5f;text-transform:uppercase;">The Desi Wardrobe</div></td></tr>
 <tr><td style="background:${IVORY};border-radius:20px;padding:28px 24px;">
 <p style="margin:0 0 8px;font-family:${SANS};font-size:11px;font-weight:600;letter-spacing:2px;color:${GOLD};text-transform:uppercase;">${escapeHtml(eyebrow)}</p>
 <h1 style="margin:0 0 16px;font-family:Georgia,'Times New Roman',serif;font-size:27px;font-weight:400;line-height:1.25;color:${INK};">${escapeHtml(title)}</h1>

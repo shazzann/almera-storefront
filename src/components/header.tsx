@@ -16,7 +16,7 @@ import {
 import { cart, totals, useCart } from "@/lib/cart";
 import { isAdminEmail } from "@/lib/admin-config";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
-import { Wordmark } from "./brand";
+import { WardrobeMark, Wordmark } from "./brand";
 import {
   ArrowIcon,
   BagIcon,
@@ -233,8 +233,9 @@ export function Header({
           <Link
             href="/"
             aria-label="almera home"
-            className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 px-1 sm:px-2 lg:static lg:top-auto lg:left-auto lg:translate-x-0 lg:translate-y-0 lg:justify-self-center"
+            className="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center gap-2 px-1 sm:gap-2.5 sm:px-2 lg:static lg:top-auto lg:left-auto lg:translate-x-0 lg:translate-y-0 lg:justify-self-center"
           >
+            <WardrobeMark className="hidden h-9 w-auto text-gold sm:block sm:h-11" />
             <Wordmark />
           </Link>
 
@@ -419,7 +420,8 @@ function CheckoutHeader() {
   return (
     <header className="border-b border-line bg-mist">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:h-20 sm:px-6">
-        <Link href="/" aria-label="almera home">
+        <Link href="/" aria-label="almera home" className="flex items-center gap-2.5">
+          <WardrobeMark className="h-9 w-auto text-gold sm:h-10" />
           <Wordmark tagline={false} />
         </Link>
         <span className="eyebrow text-ink/60">Secure checkout</span>

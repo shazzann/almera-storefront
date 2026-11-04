@@ -16,8 +16,8 @@ export function Footer({
             <div className="flex items-end gap-4">
               <WardrobeMark className="h-16 w-auto text-ivory" />
               <div>
-                <p className="display text-5xl text-olive">almera</p>
-                <p className="mt-1.5 text-[0.6rem] font-semibold tracking-[0.42em] text-ivory uppercase">
+                <p className="display text-5xl text-ivory">almera</p>
+                <p className="mt-1.5 text-[0.6rem] font-semibold tracking-[0.42em] text-sage-deep uppercase">
                   the desi wardrobe
                 </p>
               </div>

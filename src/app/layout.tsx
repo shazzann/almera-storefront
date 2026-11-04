@@ -44,9 +44,9 @@ export const metadata: Metadata = {
     locale: "en_LK",
     images: [
       {
-        url: "/brand/almera-logo.jpg",
-        width: 1078,
-        height: 1078,
+        url: "/brand/almera-logo-new.jpeg",
+        width: 1254,
+        height: 1254,
         alt: "almera, the desi wardrobe",
       },
     ],

@@ -196,7 +196,7 @@ export function AdminApp({ source }: { source: AdminSource }) {
     <Ctx.Provider value={ctx}>
       <div className="min-h-dvh lg:pl-56">
         <nav aria-label="Admin" className="fixed inset-y-0 left-0 z-40 hidden w-56 flex-col border-r border-line bg-ivory px-3 py-5 lg:flex">
-          <p className="display px-3 pb-6 text-3xl text-olive">almera</p>
+          <p className="display px-3 pb-6 text-3xl text-ink">almera</p>
           {TABS.map((t) => (
             <button
               key={t.view}

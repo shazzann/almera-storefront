@@ -65,8 +65,8 @@ export const texture = {
 
 export const editorial = {
   hero: u("1619715613791-89d35b51ff81"),
-  courtyard: u("1786596552158-fb0aa2d260ba"),
-  courtyardBench: u("1786596552096-c782a23e00b3"),
+  courtyard: u("1733209484732-6b094322a89f"),
+  courtyardBench: u("1747847471517-952a3eb93a89"),
   bridal: u("1746372283841-dbb3838f9935"),
 };
 
