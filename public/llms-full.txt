@@ -1,0 +1,62 @@
+# almera — Complete AI & Agent Reference (`llms-full.txt`)
+
+> Canonical Origin: `https://almera.lk`
+> Brand Name: `almera` (`almera — The Desi Wardrobe`)
+> Legal Entity: `ALMERA APPAREL (PVT) LTD`
+> Country / Locale / Currency: `LK` (Sri Lanka) / `en_LK` / `LKR` (Sri Lankan Rupee)
+
+## 1. Brand Overview
+almera is a Colombo-based Sri Lankan fashion boutique founded in 2024, specializing in Pakistani lawn suits, embroidered three-piece suits, ready-to-wear shalwar kameez, semi-rich hakoba & khushboo ensembles, bridal lehengas (for nikah, mehndi, and walima), and western denim.
+
+## 2. Category Taxonomy
+1. **Day to Day (`/shop/day-to-day`)** — Subcategories: `Cotton`, `Rayon`, `Muslin`. Easy cotton, rayon, and muslin for work, errands, and tropical daily wear.
+2. **Signature Styles (`/shop/signature-styles`)** — Subcategories: `Semi Rich`, `Hakoba`, `Khushboo`. Semi-rich suits, hakoba eyelet embroidery, and khushboo pieces.
+3. **Occasion (`/shop/occasion`)** — Subcategories: `Lehengas`. Bridal lehengas and formal festive ensembles for Eid, nikah, mehndi, and walima.
+4. **Pakistani (`/shop/pakistani`)** — Original lawn, embroidered suits, and bridal wear sourced from Pakistan.
+5. **Casual (`/shop/casual`)** — Relaxed prints and easy co-ords for weekends and visits.
+6. **Lawns (`/shop/lawns`)** — Breathable printed and embroidered three-piece lawn suits, available unstitched or stitched to size.
+7. **Lux (`/shop/lux`)** — Rich fabrics and dense hand embellishment; most pieces are one of a kind.
+8. **Ready to Wear (`/shop/ready-to-wear`)** — Finished, pressed outfits in standard sizes M–XXL ready for immediate dispatch.
+9. **Western (`/shop/western`)** — Subcategories: `Denim`. High-waist jeans, jackets, and co-ords in waist sizes 26–34.
+
+## 3. Standard Size Guides
+### Stitched Suits & Ready-to-Wear (Inches)
+| Size | Chest | Waist | Hip | Shirt Length |
+|------|-------|-------|-----|--------------|
+| M    | 38"   | 34"   | 40" | 38–40"       |
+| L    | 40"   | 36"   | 42" | 38–40"       |
+| XL   | 42"   | 38"   | 44" | 39–41"       |
+| XXL  | 44"   | 40"   | 46" | 39–41"       |
+
+### Western Denim (Inches)
+| Size | Waist | Hip | Length |
+|------|-------|-----|--------|
+| 26   | 26"   | 35" | 39"    |
+| 28   | 28"   | 37" | 39.5"  |
+| 30   | 30"   | 39" | 40"    |
+| 32   | 32"   | 41" | 40"    |
+| 34   | 34"   | 43" | 40.5"  |
+
+## 4. Pricing, Stitching, Delivery & Return Rules
+- **Unstitched 3-Piece**: Includes shirt fabric, 2.5m trouser fabric, and 2.5m dupatta. Dispatches in 1–2 working days.
+- **Custom Stitching**: Available on eligible 3-piece suits in sizes M–XXL for **Rs. 3,500**. Custom measurements can be added in checkout notes. Dispatches in 5–7 working days.
+- **Island-wide Courier**:
+  - Covers all 25 districts of Sri Lanka in **2–4 working days**.
+  - Rate: **Rs. 550** for the first piece + **Rs. 100** for each additional piece.
+  - Free shipping: Automatically applied on orders of **Rs. 25,000** or more.
+- **Cash on Delivery (COD) Deposit Policy**:
+  - Orders up to Rs. 3,000: Pay 100% cash on delivery.
+  - Orders over **Rs. 3,000**: Requires a minimum **Rs. 500** advance bank-transfer deposit to confirm dispatch; the balance is collected in cash upon delivery.
+- **Returns & Exchanges**:
+  - **All sales are final** (no exchanges, returns, or refunds). Unedited daylight photos and videos are available on request via Instagram (`@almera.lk`) or WhatsApp prior to ordering.
+
+## 5. Content Negotiation & Public APIs
+- **Markdown Negotiation**: Any public page (`/`, `/shop`, `/shop/{category}`, `/product/{slug}`, `/brand/almera`, `/about`, `/help`, `/contact`) returns `text/markdown; charset=utf-8` when requested with `Accept: text/markdown`.
+- **JSON APIs**:
+  - `GET /api/public/store-info`
+  - `GET /api/public/categories`
+  - `GET /api/public/brands`
+  - `GET /api/public/products`
+  - `GET /api/public/products/{slug}`
+  - `GET /openapi.json`
+

@@ -7,6 +7,7 @@ import {
   type Category,
   type CategorySlug,
 } from "@/lib/catalog";
+import { Breadcrumbs } from "@/components/seo/breadcrumbs";
 
 export function ShopHeader({
   title,
@@ -27,7 +28,11 @@ export function ShopHeader({
   useEffect(() => {
     const pill = activePill.current;
     const row = pillRow.current;
-    if (pill && row) row.scrollTo({ left: pill.offsetLeft - 16, behavior: settled.current ? "smooth" : "auto" });
+    if (pill && row)
+      row.scrollTo({
+        left: pill.offsetLeft - 16,
+        behavior: settled.current ? "smooth" : "auto",
+      });
     settled.current = true;
   }, [active]);
 
@@ -37,18 +42,25 @@ export function ShopHeader({
     if (window.location.pathname !== href) window.history.pushState(null, "", href);
   };
 
+  const activeCategory = active ? categoryList.find((c) => c.slug === active) : undefined;
+  const breadcrumbItems = activeCategory
+    ? [
+        { name: "Home", path: "/" },
+        { name: "Shop", path: "/shop" },
+        { name: activeCategory.name, path: `/shop/${activeCategory.slug}` },
+      ]
+    : [
+        { name: "Home", path: "/" },
+        { name: "Shop", path: "/shop" },
+      ];
+
   const pills = [
     { href: "/shop", label: "All", slug: undefined },
     ...categoryList.map((c) => ({ href: `/shop/${c.slug}`, label: c.name, slug: c.slug })),
   ];
   return (
     <div className="mx-auto max-w-7xl px-4 pt-8 pb-6 sm:px-8 sm:pt-14">
-      <nav aria-label="Breadcrumb" className="text-xs text-ink/55">
-        <Link href="/" className="hover:text-ink">
-          Home
-        </Link>{" "}
-        <span className="mx-1.5">/</span> <span>Shop</span>
-      </nav>
+      <Breadcrumbs items={breadcrumbItems} />
       <h1 className="display mt-4 text-[3.2rem] sm:text-7xl [&_em]:text-sage-deep">{title}</h1>
       <p className="mt-4 max-w-xl leading-relaxed text-ink/70">{blurb}</p>
       <div

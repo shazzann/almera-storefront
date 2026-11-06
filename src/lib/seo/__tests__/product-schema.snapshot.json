@@ -1,0 +1,370 @@
+{
+  "@context": "https://schema.org",
+  "@type": "ProductGroup",
+  "@id": "https://almera.lk/product/emerald-garden-lawn#product-group",
+  "productGroupID": "garden-lawn",
+  "name": "Emerald Garden Embroidered Lawn",
+  "description": "Breathable three-piece Pakistani lawn suit in deep emerald with delicate neckline embroidery and a printed chiffon dupatta.",
+  "url": "https://almera.lk/product/emerald-garden-lawn",
+  "image": [
+    "https://cdn.almera.lk/storage/v1/object/public/product-images/products/emerald-1.webp",
+    "https://cdn.almera.lk/storage/v1/object/public/product-images/products/emerald-2.webp"
+  ],
+  "sku": "ALM-EMERALD-GARDEN-LAWN",
+  "brand": {
+    "@type": "Brand",
+    "name": "almera"
+  },
+  "category": "Lawns",
+  "color": "Emerald",
+  "material": "Pakistani Lawn",
+  "variesBy": [
+    "https://schema.org/size",
+    "https://schema.org/color"
+  ],
+  "hasVariant": [
+    {
+      "@type": "Product",
+      "name": "Emerald Garden Embroidered Lawn — Unstitched",
+      "description": "Breathable three-piece Pakistani lawn suit in deep emerald with delicate neckline embroidery and a printed chiffon dupatta.",
+      "url": "https://almera.lk/product/emerald-garden-lawn?stitching=unstitched",
+      "image": [
+        "https://cdn.almera.lk/storage/v1/object/public/product-images/products/emerald-1.webp",
+        "https://cdn.almera.lk/storage/v1/object/public/product-images/products/emerald-2.webp"
+      ],
+      "sku": "ALM-EMERALD-GARDEN-LAWN-UNSTITCHED",
+      "color": "Emerald",
+      "material": "Pakistani Lawn",
+      "brand": {
+        "@type": "Brand",
+        "name": "almera"
+      },
+      "offers": {
+        "@type": "Offer",
+        "url": "https://almera.lk/product/emerald-garden-lawn",
+        "price": 12500,
+        "priceCurrency": "LKR",
+        "priceValidUntil": "2027-12-31",
+        "itemCondition": "https://schema.org/NewCondition",
+        "availability": "https://schema.org/InStock",
+        "sku": "ALM-EMERALD-GARDEN-LAWN-UNSTITCHED",
+        "seller": {
+          "@id": "https://almera.lk/#organization"
+        },
+        "shippingDetails": {
+          "@type": "OfferShippingDetails",
+          "shippingRate": {
+            "@type": "MonetaryAmount",
+            "value": 550,
+            "currency": "LKR"
+          },
+          "shippingDestination": {
+            "@type": "DefinedRegion",
+            "addressCountry": "LK"
+          },
+          "deliveryTime": {
+            "@type": "ShippingDeliveryTime",
+            "handlingTime": {
+              "@type": "QuantitativeValue",
+              "minValue": 1,
+              "maxValue": 2,
+              "unitCode": "DAY"
+            },
+            "transitTime": {
+              "@type": "QuantitativeValue",
+              "minValue": 2,
+              "maxValue": 4,
+              "unitCode": "DAY"
+            }
+          }
+        },
+        "hasMerchantReturnPolicy": {
+          "@type": "MerchantReturnPolicy",
+          "applicableCountry": "LK",
+          "returnPolicyCategory": "https://schema.org/MerchantReturnNotPermitted"
+        }
+      }
+    },
+    {
+      "@type": "Product",
+      "name": "Emerald Garden Embroidered Lawn — Stitched (M)",
+      "description": "Breathable three-piece Pakistani lawn suit in deep emerald with delicate neckline embroidery and a printed chiffon dupatta.",
+      "url": "https://almera.lk/product/emerald-garden-lawn?stitching=stitched&size=M",
+      "image": [
+        "https://cdn.almera.lk/storage/v1/object/public/product-images/products/emerald-1.webp",
+        "https://cdn.almera.lk/storage/v1/object/public/product-images/products/emerald-2.webp"
+      ],
+      "sku": "ALM-EMERALD-GARDEN-LAWN-STITCHED-M",
+      "color": "Emerald",
+      "material": "Pakistani Lawn",
+      "size": "M",
+      "brand": {
+        "@type": "Brand",
+        "name": "almera"
+      },
+      "offers": {
+        "@type": "Offer",
+        "url": "https://almera.lk/product/emerald-garden-lawn",
+        "price": 16000,
+        "priceCurrency": "LKR",
+        "priceValidUntil": "2027-12-31",
+        "itemCondition": "https://schema.org/NewCondition",
+        "availability": "https://schema.org/InStock",
+        "sku": "ALM-EMERALD-GARDEN-LAWN-STITCHED-M",
+        "seller": {
+          "@id": "https://almera.lk/#organization"
+        },
+        "shippingDetails": {
+          "@type": "OfferShippingDetails",
+          "shippingRate": {
+            "@type": "MonetaryAmount",
+            "value": 550,
+            "currency": "LKR"
+          },
+          "shippingDestination": {
+            "@type": "DefinedRegion",
+            "addressCountry": "LK"
+          },
+          "deliveryTime": {
+            "@type": "ShippingDeliveryTime",
+            "handlingTime": {
+              "@type": "QuantitativeValue",
+              "minValue": 5,
+              "maxValue": 7,
+              "unitCode": "DAY"
+            },
+            "transitTime": {
+              "@type": "QuantitativeValue",
+              "minValue": 2,
+              "maxValue": 4,
+              "unitCode": "DAY"
+            }
+          }
+        },
+        "hasMerchantReturnPolicy": {
+          "@type": "MerchantReturnPolicy",
+          "applicableCountry": "LK",
+          "returnPolicyCategory": "https://schema.org/MerchantReturnNotPermitted"
+        }
+      }
+    },
+    {
+      "@type": "Product",
+      "name": "Emerald Garden Embroidered Lawn — Stitched (L)",
+      "description": "Breathable three-piece Pakistani lawn suit in deep emerald with delicate neckline embroidery and a printed chiffon dupatta.",
+      "url": "https://almera.lk/product/emerald-garden-lawn?stitching=stitched&size=L",
+      "image": [
+        "https://cdn.almera.lk/storage/v1/object/public/product-images/products/emerald-1.webp",
+        "https://cdn.almera.lk/storage/v1/object/public/product-images/products/emerald-2.webp"
+      ],
+      "sku": "ALM-EMERALD-GARDEN-LAWN-STITCHED-L",
+      "color": "Emerald",
+      "material": "Pakistani Lawn",
+      "size": "L",
+      "brand": {
+        "@type": "Brand",
+        "name": "almera"
+      },
+      "offers": {
+        "@type": "Offer",
+        "url": "https://almera.lk/product/emerald-garden-lawn",
+        "price": 16000,
+        "priceCurrency": "LKR",
+        "priceValidUntil": "2027-12-31",
+        "itemCondition": "https://schema.org/NewCondition",
+        "availability": "https://schema.org/InStock",
+        "sku": "ALM-EMERALD-GARDEN-LAWN-STITCHED-L",
+        "seller": {
+          "@id": "https://almera.lk/#organization"
+        },
+        "shippingDetails": {
+          "@type": "OfferShippingDetails",
+          "shippingRate": {
+            "@type": "MonetaryAmount",
+            "value": 550,
+            "currency": "LKR"
+          },
+          "shippingDestination": {
+            "@type": "DefinedRegion",
+            "addressCountry": "LK"
+          },
+          "deliveryTime": {
+            "@type": "ShippingDeliveryTime",
+            "handlingTime": {
+              "@type": "QuantitativeValue",
+              "minValue": 5,
+              "maxValue": 7,
+              "unitCode": "DAY"
+            },
+            "transitTime": {
+              "@type": "QuantitativeValue",
+              "minValue": 2,
+              "maxValue": 4,
+              "unitCode": "DAY"
+            }
+          }
+        },
+        "hasMerchantReturnPolicy": {
+          "@type": "MerchantReturnPolicy",
+          "applicableCountry": "LK",
+          "returnPolicyCategory": "https://schema.org/MerchantReturnNotPermitted"
+        }
+      }
+    },
+    {
+      "@type": "Product",
+      "name": "Emerald Garden Embroidered Lawn — Stitched (XL)",
+      "description": "Breathable three-piece Pakistani lawn suit in deep emerald with delicate neckline embroidery and a printed chiffon dupatta.",
+      "url": "https://almera.lk/product/emerald-garden-lawn?stitching=stitched&size=XL",
+      "image": [
+        "https://cdn.almera.lk/storage/v1/object/public/product-images/products/emerald-1.webp",
+        "https://cdn.almera.lk/storage/v1/object/public/product-images/products/emerald-2.webp"
+      ],
+      "sku": "ALM-EMERALD-GARDEN-LAWN-STITCHED-XL",
+      "color": "Emerald",
+      "material": "Pakistani Lawn",
+      "size": "XL",
+      "brand": {
+        "@type": "Brand",
+        "name": "almera"
+      },
+      "offers": {
+        "@type": "Offer",
+        "url": "https://almera.lk/product/emerald-garden-lawn",
+        "price": 16000,
+        "priceCurrency": "LKR",
+        "priceValidUntil": "2027-12-31",
+        "itemCondition": "https://schema.org/NewCondition",
+        "availability": "https://schema.org/OutOfStock",
+        "sku": "ALM-EMERALD-GARDEN-LAWN-STITCHED-XL",
+        "seller": {
+          "@id": "https://almera.lk/#organization"
+        },
+        "shippingDetails": {
+          "@type": "OfferShippingDetails",
+          "shippingRate": {
+            "@type": "MonetaryAmount",
+            "value": 550,
+            "currency": "LKR"
+          },
+          "shippingDestination": {
+            "@type": "DefinedRegion",
+            "addressCountry": "LK"
+          },
+          "deliveryTime": {
+            "@type": "ShippingDeliveryTime",
+            "handlingTime": {
+              "@type": "QuantitativeValue",
+              "minValue": 5,
+              "maxValue": 7,
+              "unitCode": "DAY"
+            },
+            "transitTime": {
+              "@type": "QuantitativeValue",
+              "minValue": 2,
+              "maxValue": 4,
+              "unitCode": "DAY"
+            }
+          }
+        },
+        "hasMerchantReturnPolicy": {
+          "@type": "MerchantReturnPolicy",
+          "applicableCountry": "LK",
+          "returnPolicyCategory": "https://schema.org/MerchantReturnNotPermitted"
+        }
+      }
+    },
+    {
+      "@type": "Product",
+      "name": "Emerald Garden Embroidered Lawn — Stitched (XXL)",
+      "description": "Breathable three-piece Pakistani lawn suit in deep emerald with delicate neckline embroidery and a printed chiffon dupatta.",
+      "url": "https://almera.lk/product/emerald-garden-lawn?stitching=stitched&size=XXL",
+      "image": [
+        "https://cdn.almera.lk/storage/v1/object/public/product-images/products/emerald-1.webp",
+        "https://cdn.almera.lk/storage/v1/object/public/product-images/products/emerald-2.webp"
+      ],
+      "sku": "ALM-EMERALD-GARDEN-LAWN-STITCHED-XXL",
+      "color": "Emerald",
+      "material": "Pakistani Lawn",
+      "size": "XXL",
+      "brand": {
+        "@type": "Brand",
+        "name": "almera"
+      },
+      "offers": {
+        "@type": "Offer",
+        "url": "https://almera.lk/product/emerald-garden-lawn",
+        "price": 16000,
+        "priceCurrency": "LKR",
+        "priceValidUntil": "2027-12-31",
+        "itemCondition": "https://schema.org/NewCondition",
+        "availability": "https://schema.org/OutOfStock",
+        "sku": "ALM-EMERALD-GARDEN-LAWN-STITCHED-XXL",
+        "seller": {
+          "@id": "https://almera.lk/#organization"
+        },
+        "shippingDetails": {
+          "@type": "OfferShippingDetails",
+          "shippingRate": {
+            "@type": "MonetaryAmount",
+            "value": 550,
+            "currency": "LKR"
+          },
+          "shippingDestination": {
+            "@type": "DefinedRegion",
+            "addressCountry": "LK"
+          },
+          "deliveryTime": {
+            "@type": "ShippingDeliveryTime",
+            "handlingTime": {
+              "@type": "QuantitativeValue",
+              "minValue": 5,
+              "maxValue": 7,
+              "unitCode": "DAY"
+            },
+            "transitTime": {
+              "@type": "QuantitativeValue",
+              "minValue": 2,
+              "maxValue": 4,
+              "unitCode": "DAY"
+            }
+          }
+        },
+        "hasMerchantReturnPolicy": {
+          "@type": "MerchantReturnPolicy",
+          "applicableCountry": "LK",
+          "returnPolicyCategory": "https://schema.org/MerchantReturnNotPermitted"
+        }
+      }
+    }
+  ],
+  "hasPart": [
+    {
+      "@type": "Product",
+      "name": "Emerald Garden Embroidered Lawn — Embroidered lawn shirt front, printed back & sleeves",
+      "sku": "ALM-EMERALD-GARDEN-LAWN-P1",
+      "brand": {
+        "@type": "Brand",
+        "name": "almera"
+      }
+    },
+    {
+      "@type": "Product",
+      "name": "Emerald Garden Embroidered Lawn — 2.5 m chiffon dupatta",
+      "sku": "ALM-EMERALD-GARDEN-LAWN-P2",
+      "brand": {
+        "@type": "Brand",
+        "name": "almera"
+      }
+    },
+    {
+      "@type": "Product",
+      "name": "Emerald Garden Embroidered Lawn — 2.5 m dyed cambric trouser",
+      "sku": "ALM-EMERALD-GARDEN-LAWN-P3",
+      "brand": {
+        "@type": "Brand",
+        "name": "almera"
+      }
+    }
+  ]
+}

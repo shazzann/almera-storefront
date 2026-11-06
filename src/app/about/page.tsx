@@ -3,14 +3,29 @@ import Image from "@/components/image";
 import Link from "next/link";
 import { WardrobeMark } from "@/components/brand";
 import { ArrowIcon } from "@/components/icons";
+import { Breadcrumbs } from "@/components/seo/breadcrumbs";
+import { JsonLd } from "@/components/seo/json-ld";
 import { categories, editorial, texture } from "@/lib/catalog";
+import { buildMetadata } from "@/lib/seo/metadata";
+import { buildBreadcrumbSchema } from "@/lib/seo/schema";
 
-export const metadata: Metadata = {
-  title: "Our story",
+export const metadata: Metadata = buildMetadata({
+  title: "Our Story — Pakistani & Indian Ethnic Boutique in Sri Lanka",
   description:
-    "About Almera — A Dream Woven into Every Dress. Carefully selected Indian and Pakistani dress collections, delivered island-wide across Sri Lanka.",
-  alternates: { canonical: "/about" },
-};
+    "About almera — A Dream Woven into Every Dress. Carefully selected Pakistani and Indian dress collections, delivered island-wide across Sri Lanka.",
+  path: "/about",
+  keywords: [
+    "about almera",
+    "Pakistani boutique Sri Lanka",
+    "Indian dresses Colombo",
+    "almera Sri Lanka story",
+  ],
+});
+
+const BREADCRUMBS = [
+  { name: "Home", path: "/" },
+  { name: "Our Story", path: "/about" },
+];
 
 const VALUES = [
   "Passion",
@@ -51,10 +66,12 @@ function ArchFrame({
 export default function AboutPage() {
   return (
     <div className="bg-ivory text-ink">
+      <JsonLd data={buildBreadcrumbSchema(BREADCRUMBS)} />
       {/* 1. Hero — About Almera: A Dream Woven into Every Dress */}
       <section className="mx-auto max-w-7xl px-4 pt-10 pb-16 sm:px-8 sm:pt-14 sm:pb-24">
         <div className="grid items-center gap-12 lg:grid-cols-[1.15fr_0.85fr] lg:gap-16">
           <div>
+            <Breadcrumbs items={BREADCRUMBS} className="mb-4 text-xs text-ink/55" />
             <p className="eyebrow text-sage-deep">About Almera</p>
             <h1 className="display mt-4 text-[3.2rem] text-ink sm:text-6xl lg:text-[4.5rem]">
               a dream woven <em className="text-olive">into every dress</em>

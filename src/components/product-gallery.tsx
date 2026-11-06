@@ -5,11 +5,29 @@ import { useEffect, useRef, useState } from "react";
 
 const FALLBACK_IMAGE = "/placeholder.svg";
 
-export function ProductGallery({ images, name }: { images: string[]; name: string }) {
+export function ProductGallery({
+  images,
+  name,
+  colour,
+  fabric,
+}: {
+  images: string[];
+  name: string;
+  colour?: string;
+  fabric?: string;
+}) {
   const safeImages = images.length > 0 ? images : [FALLBACK_IMAGE];
   const [index, setIndex] = useState(0);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const track = useRef<HTMLDivElement>(null);
+
+  const contextSuffix = [colour, fabric].filter(Boolean).join(" ");
+  const getAltText = (i: number) => {
+    const base = contextSuffix ? `${name} — ${contextSuffix}` : name;
+    return i === 0
+      ? `${base} | almera Sri Lanka`
+      : `${base} detail view ${i + 1} | almera Sri Lanka`;
+  };
 
   const onScroll = () => {
     const el = track.current;
@@ -59,10 +77,9 @@ export function ProductGallery({ images, name }: { images: string[]; name: strin
             >
               <Image
                 src={src}
-                alt={i === 0 ? name : `${name}, detail ${i}`}
+                alt={getAltText(i)}
                 fill
                 sizes="100vw"
-                priority={i === 0}
                 loading={i === 0 ? "eager" : "lazy"}
                 decoding="async"
                 className="object-cover"
@@ -74,7 +91,7 @@ export function ProductGallery({ images, name }: { images: string[]; name: strin
           ))}
         </div>
         {safeImages.length > 1 && (
-          <div className="absolute inset-x-0 bottom-4 flex justify-center gap-2 pointer-events-none">
+          <div className="pointer-events-none absolute inset-x-0 bottom-4 flex justify-center gap-2">
             {safeImages.map((src, i) => (
               <button
                 key={`${src}-dot-${i}`}
@@ -95,7 +112,7 @@ export function ProductGallery({ images, name }: { images: string[]; name: strin
         )}
       </div>
 
-      {/* Larger screens: the first photo in a tall arch, then details below it */}
+      {/* Larger screens: the first photo in a tall arch (LCP element), then details below it */}
       <div className="hidden gap-4 lg:grid lg:grid-cols-2">
         {safeImages.map((src, i) => (
           <button
@@ -109,10 +126,11 @@ export function ProductGallery({ images, name }: { images: string[]; name: strin
           >
             <Image
               src={src}
-              alt={i === 0 ? name : `${name}, detail ${i}`}
+              alt={getAltText(i)}
               fill
               sizes={i === 0 ? "55vw" : "27vw"}
               priority={i === 0}
+              fetchPriority={i === 0 ? "high" : "auto"}
               loading={i === 0 ? "eager" : "lazy"}
               decoding="async"
               className="object-cover transition duration-700 group-hover:scale-[1.03]"
@@ -151,10 +169,9 @@ export function ProductGallery({ images, name }: { images: string[]; name: strin
           >
             <Image
               src={safeImages[lightboxIndex]}
-              alt={`${name} zoomed photo ${lightboxIndex + 1}`}
+              alt={getAltText(lightboxIndex)}
               fill
               sizes="95vw"
-              priority
               className="object-contain"
             />
             {safeImages.length > 1 && (
@@ -162,7 +179,9 @@ export function ProductGallery({ images, name }: { images: string[]; name: strin
                 <button
                   type="button"
                   onClick={() =>
-                    setLightboxIndex((lightboxIndex - 1 + safeImages.length) % safeImages.length)
+                    setLightboxIndex(
+                      (lightboxIndex - 1 + safeImages.length) % safeImages.length,
+                    )
                   }
                   aria-label="Previous photo"
                   className="absolute top-1/2 left-3 -translate-y-1/2 rounded-full bg-ink/75 px-3.5 py-2 text-sm font-semibold text-ivory backdrop-blur hover:bg-ivory hover:text-ink"

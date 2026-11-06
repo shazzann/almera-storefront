@@ -1,11 +1,14 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { CheckoutForm } from "@/components/checkout-form";
+import { buildMetadata } from "@/lib/seo/metadata";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = buildMetadata({
   title: "Checkout",
-  robots: { index: false },
-};
+  description: "Complete your almera order with island-wide courier delivery across Sri Lanka.",
+  path: "/checkout",
+  noindex: true,
+});
 
 export default function CheckoutPage() {
   return (

@@ -1,46 +1,39 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Breadcrumbs } from "@/components/seo/breadcrumbs";
+import { JsonLd } from "@/components/seo/json-ld";
 import { SizeGuideTable } from "@/components/size-guide";
-import { DELIVERY, FREE_DELIVERY_FROM, STITCHING_FEE, formatLKR } from "@/lib/catalog";
+import { DELIVERY, FREE_DELIVERY_FROM, formatLKR } from "@/lib/catalog";
 import { COD_DEPOSIT_THRESHOLD, COD_MIN_DEPOSIT } from "@/lib/cod-deposit";
+import { STORE_FAQS } from "@/lib/seo/faq-content";
+import { buildMetadata } from "@/lib/seo/metadata";
+import { buildBreadcrumbSchema, buildFaqSchema } from "@/lib/seo/schema";
 
-export const metadata: Metadata = {
-  title: "Delivery, sizing & FAQ",
+export const metadata: Metadata = buildMetadata({
+  title: "Delivery, Size Guide, Payment & Order Policy",
   description:
-    "Delivery times and fees across Sri Lanka, the almera size guide, payment options and our order policy.",
-  alternates: { canonical: "/help" },
-};
+    "Delivery times and fees across Sri Lanka, the almera size guide, Cash on Delivery & bank transfer payment options, and our order policy.",
+  path: "/help",
+  keywords: [
+    "almera delivery Sri Lanka",
+    "almera size guide",
+    "Pakistani suits size chart Sri Lanka",
+    "Cash on delivery dresses Sri Lanka",
+  ],
+});
 
-const FAQ = [
-  {
-    q: "What’s the difference between stitched and unstitched?",
-    a: `Unstitched is the three-piece fabric (shirt, dupatta and trouser) for your own tailor. Stitched means our tailors make it up in a standard size for ${formatLKR(STITCHING_FEE)}, ready in 5–7 days.`,
-  },
-  {
-    q: "Why do Cash on Delivery orders over Rs. 3,000 require an advance deposit?",
-    a: `For Cash on Delivery orders above ${formatLKR(COD_DEPOSIT_THRESHOLD)}, we ask for a small ${formatLKR(COD_MIN_DEPOSIT)} commitment deposit via bank transfer to confirm dispatch. This amount is deducted from your order total, and you pay the remaining balance in cash to the courier upon delivery.`,
-  },
-  {
-    q: "Can I give my own measurements?",
-    a: "Yes. Choose the closest size, then add your measurements in the note at checkout. We’ll confirm them with you before stitching.",
-  },
-  {
-    q: "Are the colours accurate?",
-    a: "We photograph in daylight and avoid filters, but screens differ. If colour matters, message us for an unedited photo or video before ordering.",
-  },
-  {
-    q: "How do I know my order went through?",
-    a: "You’ll see a confirmation with your order number, and you can check your status anytime on our Track Order page. We’ll also call or WhatsApp you within one working day.",
-  },
-  {
-    q: "Do you restock sold-out pieces?",
-    a: "Lawn sometimes comes back. Bridal pieces are usually one of a kind. Follow @almera.lk to hear about restocks first.",
-  },
+const BREADCRUMBS = [
+  { name: "Home", path: "/" },
+  { name: "Help & FAQ", path: "/help" },
 ];
 
 export default function HelpPage() {
   return (
     <div className="mx-auto max-w-3xl px-4 pt-8 pb-20 sm:px-8 sm:pt-14">
+      <JsonLd data={buildFaqSchema(STORE_FAQS)} />
+      <JsonLd data={buildBreadcrumbSchema(BREADCRUMBS)} />
+
+      <Breadcrumbs items={BREADCRUMBS} className="mb-3 text-xs text-ink/55" />
       <p className="eyebrow text-gold-deep">Help</p>
       <h1 className="display mt-4 text-[3.2rem] sm:text-7xl">
         before you <em className="text-sage-deep">order</em>
@@ -72,14 +65,18 @@ export default function HelpPage() {
             <div key={d.label} className="rounded-2xl bg-ivory p-5">
               <p className="font-semibold">{d.label}</p>
               <p className="mt-1 text-sm text-ink/65">{d.eta}</p>
-              <p className="mt-3 text-lg font-semibold">{formatLKR(d.firstPiece)} for the first piece</p>
-              <p className="mt-0.5 text-sm text-ink/65">Plus {formatLKR(d.extraPiece)} for each extra piece</p>
+              <p className="mt-3 text-lg font-semibold">
+                {formatLKR(d.firstPiece)} for the first piece
+              </p>
+              <p className="mt-0.5 text-sm text-ink/65">
+                Plus {formatLKR(d.extraPiece)} for each extra piece
+              </p>
             </div>
           ))}
         </div>
         <p className="mt-4 leading-relaxed text-ink/75">
-          Delivery is free on orders over {formatLKR(FREE_DELIVERY_FROM)}. Stitched orders take
-          5–7 days before dispatch. We deliver to all 25 districts.
+          Delivery is free on orders over {formatLKR(FREE_DELIVERY_FROM)}. Stitched orders
+          take 5–7 days before dispatch. We deliver to all 25 districts.
         </p>
       </Block>
 
@@ -92,8 +89,8 @@ export default function HelpPage() {
       <Block id="payment" title="Payment">
         <ul className="space-y-3 leading-relaxed text-ink/75">
           <li>
-            <strong className="font-semibold text-ink">Cash on delivery.</strong> Pay the courier
-            when your parcel arrives. For COD orders above{" "}
+            <strong className="font-semibold text-ink">Cash on delivery.</strong> Pay the
+            courier when your parcel arrives. For COD orders above{" "}
             <strong className="font-semibold text-ink">
               {formatLKR(COD_DEPOSIT_THRESHOLD)}
             </strong>
@@ -105,9 +102,9 @@ export default function HelpPage() {
             collected in cash on delivery.
           </li>
           <li>
-            <strong className="font-semibold text-ink">Bank transfer.</strong> Transfer the full
-            order total to our bank account and share your slip on WhatsApp; your order ships once
-            the slip is confirmed.
+            <strong className="font-semibold text-ink">Bank transfer.</strong> Transfer the
+            full order total to our bank account and share your slip on WhatsApp; your order
+            ships once the slip is confirmed.
           </li>
         </ul>
       </Block>
@@ -116,15 +113,15 @@ export default function HelpPage() {
         <div className="rounded-2xl bg-sage-soft p-6 leading-relaxed">
           <p className="font-semibold">All sales are final.</p>
           <p className="mt-2 text-ink/80">
-            We don’t offer exchanges, returns or refunds. Please check the size guide and product
-            details carefully, and message us with any questions before you order.
+            We don’t offer exchanges, returns or refunds. Please check the size guide and
+            product details carefully, and message us with any questions before you order.
           </p>
         </div>
       </Block>
 
       <Block id="faq" title="Questions">
         <div className="divide-y divide-line border-y border-line">
-          {FAQ.map((f) => (
+          {STORE_FAQS.map((f) => (
             <details key={f.q} className="group">
               <summary className="flex min-h-16 cursor-pointer list-none items-center justify-between gap-4 py-3 font-medium [&::-webkit-details-marker]:hidden">
                 {f.q}

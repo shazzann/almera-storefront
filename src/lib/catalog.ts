@@ -21,9 +21,27 @@ export type Category = {
   subcategories?: string[];
   /** Column in the desktop Shop menu, chosen by the owner. */
   group?: string;
+  updatedAt?: string;
+};
+
+export type ProductVariantInfo = {
+  id: string;
+  stitching: Stitching;
+  size: string;
+  sku?: string;
+  price?: number;
+  stock: number;
+};
+
+export type ProductReview = {
+  author: string;
+  ratingValue: number;
+  body: string;
+  datePublished?: string;
 };
 
 export type Product = {
+  id?: string;
   slug: string;
   name: string;
   /** First entry is the home category, used for breadcrumbs and "more from". Ready to Wear is worked out automatically. */
@@ -49,6 +67,18 @@ export type Product = {
   care?: string;
   /** Shared by the listings that are colours of one item. */
   colourGroup?: string;
+  /** Optional real merchant SKU (from variant or product). Never a UUID. */
+  sku?: string;
+  /** Optional real GTIN-8/12/13/14 barcode when available. */
+  gtin?: string;
+  /** Optional real manufacturer part number (never a UUID). */
+  mpn?: string;
+  /** Variant rows from DB for structured data & merchant feeds. */
+  variants?: ProductVariantInfo[];
+  /** Verified customer reviews when available. */
+  reviews?: ProductReview[];
+  createdAt?: string;
+  updatedAt?: string;
 };
 
 /** Fixed site photos, stored on our CDN under their original photo ids. */

@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "node --import ./src/lib/seo/__tests__/register-loader.mjs --test src/lib/seo/__tests__/schema.test.ts"
   },
   "dependencies": {
     "@payments-lk/node": "^0.4.1",

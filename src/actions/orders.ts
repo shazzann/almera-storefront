@@ -95,6 +95,10 @@ export type CouponResult = {
   label: string;
 };
 
+export type ValidateCouponActionResult =
+  | { ok: true; coupon: CouponResult }
+  | { ok: false; error: string };
+
 export async function getPublicCouponsAction(): Promise<PublicCouponSummary[]> {
   return getPublicCoupons();
 }
@@ -105,65 +109,78 @@ export async function validateCouponAction(input: {
   phone?: string;
   email?: string;
   requireCustomerForFirstOrder?: boolean;
-}): Promise<CouponResult> {
-  const reqHeaders = await headers();
-  enforceRateLimit(getClientIp({ headers: reqHeaders }), COUPON_RATE_LIMIT);
-
-  const normalizedCode = input.code.trim().toUpperCase();
-  if (!normalizedCode) {
-    throw new Error("Enter a promo code.");
-  }
-
-  let authenticatedUserId: string | null = null;
+}): Promise<ValidateCouponActionResult> {
   try {
-    const userClient = await createSupabaseServerClient();
-    const {
-      data: { user },
-    } = await userClient.auth.getUser();
-    if (user?.id) authenticatedUserId = user.id;
-  } catch {
-    // guest
+    const reqHeaders = await headers();
+    enforceRateLimit(getClientIp({ headers: reqHeaders }), COUPON_RATE_LIMIT);
+
+    const normalizedCode = input.code.trim().toUpperCase();
+    if (!normalizedCode) {
+      return { ok: false, error: "Enter a promo code." };
+    }
+
+    let authenticatedUserId: string | null = null;
+    try {
+      const userClient = await createSupabaseServerClient();
+      const {
+        data: { user },
+      } = await userClient.auth.getUser();
+      if (user?.id) authenticatedUserId = user.id;
+    } catch {
+      // guest
+    }
+
+    const verified = await resolveAuthoritativeLines(input.items);
+    const subtotal = verified.reduce((s, l) => s + l.unit_price * l.quantity, 0);
+    const pieces = verified.reduce((n, l) => n + l.quantity, 0);
+    const deliveryFee = subtotal >= FREE_DELIVERY_FROM ? 0 : deliveryFeeFor(pieces);
+
+    const result = await validateAndCalculateCoupon({
+      code: normalizedCode,
+      items: verified.map((l) => ({
+        product_id: l.product_id,
+        slug: l.product_slug,
+        price: l.unit_price,
+        quantity: l.quantity,
+        is_on_sale: l.is_on_sale,
+        categories: l.categories,
+        subcategory: l.subcategory,
+      })),
+      deliveryFee,
+      customer: {
+        phone: input.phone,
+        email: input.email,
+        user_id: authenticatedUserId,
+      },
+      requireCustomerForFirstOrder: input.requireCustomerForFirstOrder ?? false,
+    });
+
+    if (!result.valid) {
+      return { ok: false, error: result.message };
+    }
+
+    return {
+      ok: true,
+      coupon: {
+        code: result.code,
+        discountAmount: result.discount_amount,
+        discountType: result.type,
+        discountValue: result.discount_value,
+        isFreeDelivery: result.is_free_delivery,
+        firstOrderOnly: result.first_order_only,
+        maxDiscountAmount: result.max_discount_amount,
+        label: result.message,
+      },
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      error:
+        err instanceof Error
+          ? err.message
+          : "Could not validate promo code. Please try again.",
+    };
   }
-
-  const verified = await resolveAuthoritativeLines(input.items);
-  const subtotal = verified.reduce((s, l) => s + l.unit_price * l.quantity, 0);
-  const pieces = verified.reduce((n, l) => n + l.quantity, 0);
-  const deliveryFee = subtotal >= FREE_DELIVERY_FROM ? 0 : deliveryFeeFor(pieces);
-
-  const result = await validateAndCalculateCoupon({
-    code: normalizedCode,
-    items: verified.map((l) => ({
-      product_id: l.product_id,
-      slug: l.product_slug,
-      price: l.unit_price,
-      quantity: l.quantity,
-      is_on_sale: l.is_on_sale,
-      categories: l.categories,
-      subcategory: l.subcategory,
-    })),
-    deliveryFee,
-    customer: {
-      phone: input.phone,
-      email: input.email,
-      user_id: authenticatedUserId,
-    },
-    requireCustomerForFirstOrder: input.requireCustomerForFirstOrder ?? false,
-  });
-
-  if (!result.valid) {
-    throw new Error(result.message);
-  }
-
-  return {
-    code: result.code,
-    discountAmount: result.discount_amount,
-    discountType: result.type,
-    discountValue: result.discount_value,
-    isFreeDelivery: result.is_free_delivery,
-    firstOrderOnly: result.first_order_only,
-    maxDiscountAmount: result.max_discount_amount,
-    label: result.message,
-  };
 }
 
 async function resolveAuthoritativeLines(items: z.infer<typeof orderItemInputSchema>[]) {

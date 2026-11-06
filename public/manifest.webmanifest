@@ -1,0 +1,22 @@
+{
+  "name": "almera — The Desi Wardrobe",
+  "short_name": "almera",
+  "description": "Shop 100% original Pakistani lawn suits, ready-to-wear shalwar kameez and bridal lehengas online in Sri Lanka.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#eef1e9",
+  "theme_color": "#eef1e9",
+  "icons": [
+    {
+      "src": "/brand/admin-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/brand/admin-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
+

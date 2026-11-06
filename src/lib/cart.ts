@@ -117,7 +117,16 @@ async function revalidateActiveCoupon(lines: CartLine[], customer?: { phone?: st
       email: customer?.email,
     });
     if (token !== revalidateCounter) return;
-    emit({ ...state, appliedCoupon: res, couponChecking: false });
+    if (!res.ok) {
+      emit({
+        ...state,
+        appliedCoupon: null,
+        couponChecking: false,
+        couponNotice: `Promo code ${active.code} removed: ${res.error}`,
+      });
+      return;
+    }
+    emit({ ...state, appliedCoupon: res.coupon, couponChecking: false });
   } catch (err) {
     if (token !== revalidateCounter) return;
     const msg =
@@ -217,8 +226,12 @@ export const cart = {
         email: customer?.email,
         requireCustomerForFirstOrder: customer?.requireCustomerForFirstOrder,
       });
-      emit({ ...state, appliedCoupon: res, couponChecking: false, couponNotice: null });
-      return res;
+      if (!res.ok) {
+        emit({ ...state, couponChecking: false });
+        throw new Error(res.error);
+      }
+      emit({ ...state, appliedCoupon: res.coupon, couponChecking: false, couponNotice: null });
+      return res.coupon;
     } catch (err) {
       emit({ ...state, couponChecking: false });
       throw err;
