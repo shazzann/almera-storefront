@@ -90,7 +90,7 @@ export function HomeScreen({
 function ActiveOrder({ order }: { order: AccountOrder }) {
   const { base } = useAccount();
   const step = currentStep(order.status) ?? 0;
-  const status = statusOf(order.status);
+  const status = statusOf(order.status, order);
   const payment = paymentNeeded(order);
 
   return (
@@ -108,9 +108,17 @@ function ActiveOrder({ order }: { order: AccountOrder }) {
           </li>
         ))}
       </ol>
-      {payment ? (
+      {payment === "bank_upload" ? (
         <span className="mt-4 flex min-h-12 items-center justify-center rounded-full bg-gold px-4 text-center text-[0.9rem] font-semibold text-ink">
-          {payment === "deposit" ? "Send your deposit to confirm" : "Send your payment slip"}
+          Upload payment proof (1-hour window)
+        </span>
+      ) : payment === "bank_verifying" ? (
+        <span className="mt-4 flex min-h-12 items-center justify-center rounded-full bg-ivory/15 px-4 text-center text-[0.9rem] font-medium text-ivory">
+          Payment slip uploaded · awaiting verification
+        </span>
+      ) : payment === "deposit" ? (
+        <span className="mt-4 flex min-h-12 items-center justify-center rounded-full bg-gold px-4 text-center text-[0.9rem] font-semibold text-ink">
+          Send your deposit to confirm
         </span>
       ) : (
         <span className="mt-4 flex items-center justify-between text-[0.92rem] font-medium">

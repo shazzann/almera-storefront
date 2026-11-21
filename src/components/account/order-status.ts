@@ -12,7 +12,7 @@ const TONE = {
 
 export const ORDER_STATUS: Record<string, { label: string; tone: string; note: string }> = {
   pending: { label: "Order received", tone: TONE.moving, note: "We’ve got your order and will confirm it soon." },
-  awaiting_bank_slip: { label: "Waiting for payment", tone: TONE.waiting, note: "Send your payment slip so we can start preparing your order." },
+  awaiting_bank_slip: { label: "Verifying payment", tone: TONE.waiting, note: "We’ve received your payment slip and are verifying it with our bank." },
   payment_pending: { label: "Payment not finished", tone: TONE.waiting, note: "Your card payment wasn’t completed. Your pieces are held for a short time." },
   payment_processing: { label: "Checking payment", tone: TONE.waiting, note: "We’re confirming your card payment with the bank." },
   paid: { label: "Paid", tone: TONE.moving, note: "Your payment is in. We’ll start preparing your order soon." },
@@ -25,8 +25,42 @@ export const ORDER_STATUS: Record<string, { label: string; tone: string; note: s
   refunded: { label: "Refunded", tone: TONE.stopped, note: "This order has been refunded." },
 };
 
-export const statusOf = (status: string) =>
-  ORDER_STATUS[status] ?? { label: status.replace(/_/g, " "), tone: "bg-mist text-ink/65", note: "" };
+const hasBankProof = (
+  o?: Pick<AccountOrder, "payment_proof_path" | "payment_proof_confirmed_at" | "payment_proof_purged_at">,
+) => Boolean(o?.payment_proof_path || o?.payment_proof_confirmed_at || o?.payment_proof_purged_at);
+
+export function statusOf(
+  status: string,
+  order?: Pick<
+    AccountOrder,
+    "payment_method" | "payment_proof_path" | "payment_proof_confirmed_at" | "payment_proof_purged_at"
+  >,
+) {
+  if (order?.payment_method === "bank") {
+    if (status === "payment_pending") {
+      return {
+        label: "Upload payment slip",
+        tone: TONE.waiting,
+        note: "Your pieces are held for 1 hour. Transfer to our bank account and upload your payment slip below to confirm your order.",
+      };
+    }
+    if (status === "awaiting_bank_slip" && !hasBankProof(order)) {
+      return {
+        label: "Waiting for payment",
+        tone: TONE.waiting,
+        note: "Upload your payment slip below so we can verify it and prepare your order.",
+      };
+    }
+    if (status === "processing_failed" && hasBankProof(order)) {
+      return {
+        label: "Needs assistance",
+        tone: TONE.stopped,
+        note: "We received your payment slip, but an item sold out before confirmation. Our team has been notified and will reach out shortly.",
+      };
+    }
+  }
+  return ORDER_STATUS[status] ?? { label: status.replace(/_/g, " "), tone: "bg-mist text-ink/65", note: "" };
+}
 
 export const ORDER_STEPS = ["Placed", "Preparing", "On the way", "Delivered"];
 
@@ -44,8 +78,17 @@ export function currentStep(status: string) {
 export const isActiveOrder = (o: AccountOrder) => o.status !== "delivered" && !STOPPED.includes(o.status);
 
 /** What the customer needs to do next, if anything. */
-export function paymentNeeded(o: AccountOrder): "deposit" | "bank" | null {
-  if (o.payment_method === "bank" && o.status === "awaiting_bank_slip") return "bank";
+export function paymentNeeded(o: AccountOrder): "deposit" | "bank_upload" | "bank_verifying" | null {
+  if (o.payment_method === "bank") {
+    const hasProof = hasBankProof(o);
+    if ((o.status === "payment_pending" || o.status === "awaiting_bank_slip") && !hasProof) {
+      return "bank_upload";
+    }
+    if (o.status === "awaiting_bank_slip" && hasProof) {
+      return "bank_verifying";
+    }
+    return null;
+  }
   const waiting = o.status === "pending" || o.status === "awaiting_bank_slip";
   if (waiting && requiresCodDeposit(o.payment_method, num(o.total)) && num(o.advance_deposit) < COD_MIN_DEPOSIT) return "deposit";
   return null;

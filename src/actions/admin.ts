@@ -17,6 +17,7 @@ import {
 } from "@/lib/catalog";
 import { restoreStock, type StockItem } from "@/lib/stock-helpers.server";
 import { getSupabaseAdmin } from "@/lib/supabase/admin.server";
+import { PAYMENT_PROOF_BUCKET, purgeExpiredPaymentProofs } from "@/lib/payment-proofs.server";
 import sharp from "sharp";
 import { IMAGE_VARIANT_WIDTHS, buildImageUrl, getStoragePath, hasVariants, variantPath, withVariantPaths } from "@/lib/image-url";
 
@@ -101,6 +102,36 @@ async function loadDashboardData(accessToken?: string | null) {
     categoriesRes = await readCategories();
   }
 
+  const rawOrders = ordersRes.data ?? [];
+  const proofPaths = Array.from(
+    new Set(
+      rawOrders
+        .map((o: any) => o.payment_proof_path)
+        .filter((p: unknown): p is string => typeof p === "string" && p.length > 0),
+    ),
+  );
+
+  const signedUrlMap = new Map<string, string>();
+  if (proofPaths.length > 0) {
+    try {
+      const { data: signedData } = await supabase.storage
+        .from(PAYMENT_PROOF_BUCKET)
+        .createSignedUrls(proofPaths, 3600);
+      for (const item of signedData ?? []) {
+        if (item.path && item.signedUrl) {
+          signedUrlMap.set(item.path, item.signedUrl);
+        }
+      }
+    } catch (err) {
+      console.warn("[admin] Failed to sign payment proof URLs:", err);
+    }
+  }
+
+  const orders = rawOrders.map((o: any) => ({
+    ...o,
+    payment_proof_url: o.payment_proof_path ? (signedUrlMap.get(o.payment_proof_path) ?? null) : null,
+  }));
+
   return {
     supabaseConfigured: true,
     categories:
@@ -108,7 +139,7 @@ async function loadDashboardData(accessToken?: string | null) {
         ? categoriesRes.data
         : frontendCategoryRows,
     products: productsRes.data ?? [],
-    orders: ordersRes.data ?? [],
+    orders,
     coupons: couponsRes.data ?? [],
     auditLogs: auditRes.data ?? [],
     hero: { ...DEFAULT_HERO, ...(heroRes.data?.value ?? {}) },
@@ -425,18 +456,42 @@ export async function updateOrderStatusAction(
     }
   }
 
-  const { data: updated, error: updateErr } = await supabase
+  const confirmingBankOrder =
+    order.payment_method === "bank" &&
+    ["confirmed", "shipped", "delivered"].includes(params.nextStatus);
+  const nowIso = new Date().toISOString();
+
+  const updatePayload: Record<string, unknown> = {
+    status: params.nextStatus,
+    stock_reserved: params.nextStatus === "cancelled" ? false : order.stock_reserved,
+    updated_at: nowIso,
+  };
+  if (confirmingBankOrder && !order.payment_proof_confirmed_at) {
+    updatePayload.payment_proof_confirmed_at = nowIso;
+  }
+
+  let { data: updated, error: updateErr } = await supabase
     .from("orders")
-    .update({
-      status: params.nextStatus,
-      stock_reserved: params.nextStatus === "cancelled" ? false : order.stock_reserved,
-      updated_at: new Date().toISOString(),
-    })
+    .update(updatePayload)
     .eq("id", params.orderId)
     .select("*")
     .single();
 
+  if (updateErr?.code === "42703" && "payment_proof_confirmed_at" in updatePayload) {
+    delete updatePayload.payment_proof_confirmed_at;
+    ({ data: updated, error: updateErr } = await supabase
+      .from("orders")
+      .update(updatePayload)
+      .eq("id", params.orderId)
+      .select("*")
+      .single());
+  }
+
   if (updateErr) throw new Error(updateErr.message);
+
+  if (["confirmed", "shipped", "delivered"].includes(params.nextStatus)) {
+    after(() => purgeExpiredPaymentProofs().catch(() => {}));
+  }
 
   await logAuditEvent({
     userId: admin.userId,
@@ -481,20 +536,36 @@ export async function recordBankDepositAction(
   }
 
   const nextStatus = params.confirmOrder ? "confirmed" : order.status;
+  const nowIso = new Date().toISOString();
 
-  const { data: updated, error } = await supabase
+  const depositUpdatePayload: Record<string, unknown> = {
+    advance_deposit: Math.max(0, params.depositAmount),
+    bank_slip_reference: params.slipReference.trim() || null,
+    advance_deposit_note: params.depositNote?.trim() || null,
+    advance_deposit_at: nowIso,
+    status: nextStatus,
+    updated_at: nowIso,
+  };
+  if (params.confirmOrder && order.payment_method === "bank" && !order.payment_proof_confirmed_at) {
+    depositUpdatePayload.payment_proof_confirmed_at = nowIso;
+  }
+
+  let { data: updated, error } = await supabase
     .from("orders")
-    .update({
-      advance_deposit: Math.max(0, params.depositAmount),
-      bank_slip_reference: params.slipReference.trim() || null,
-      advance_deposit_note: params.depositNote?.trim() || null,
-      advance_deposit_at: new Date().toISOString(),
-      status: nextStatus,
-      updated_at: new Date().toISOString(),
-    })
+    .update(depositUpdatePayload)
     .eq("id", params.orderId)
     .select("*")
     .single();
+
+  if (error?.code === "42703" && "payment_proof_confirmed_at" in depositUpdatePayload) {
+    delete depositUpdatePayload.payment_proof_confirmed_at;
+    ({ data: updated, error } = await supabase
+      .from("orders")
+      .update(depositUpdatePayload)
+      .eq("id", params.orderId)
+      .select("*")
+      .single());
+  }
 
   if (error) throw new Error(error.message);
 
@@ -513,10 +584,20 @@ export async function recordBankDepositAction(
     accessToken,
   });
 
-  if (order.email && params.depositAmount > 0) {
-    after(() =>
-      notifyCodDepositReceived(order.id).catch((e) => console.error("[order] Deposit email failed:", e)),
-    );
+  if (params.confirmOrder) {
+    after(() => purgeExpiredPaymentProofs().catch(() => {}));
+  }
+
+  if (order.email) {
+    if (order.payment_method === "bank" && params.confirmOrder && order.status !== "confirmed") {
+      after(() =>
+        notifyOrderStatus(order.id, "confirmed").catch((e) => console.error("[order] Confirm email failed:", e)),
+      );
+    } else if (order.payment_method === "cod" && params.depositAmount > 0) {
+      after(() =>
+        notifyCodDepositReceived(order.id).catch((e) => console.error("[order] Deposit email failed:", e)),
+      );
+    }
   }
 
   return updated;

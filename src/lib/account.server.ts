@@ -5,8 +5,11 @@ import type { AccountProfile } from "@/components/account/types";
 import { getSupabaseAdmin } from "@/lib/supabase/admin.server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
-export const ORDER_COLUMNS =
+const LEGACY_ORDER_COLUMNS =
   "id, order_number, status, payment_method, total, subtotal, delivery_fee, discount_amount, coupon_code, advance_deposit, refund_amount, created_at, customer_name, phone, address, city, district, postal_code, notes, order_items(id, product_slug, product_name, stitching, size, unit_price, quantity, image_url)";
+
+export const ORDER_COLUMNS =
+  `${LEGACY_ORDER_COLUMNS}, hold_expires_at, payment_proof_path, payment_proof_mime, bank_slip_reference, payment_proof_confirmed_at, payment_proof_purged_at`;
 
 export const ADDRESS_COLUMNS = "id, label, recipient_name, phone, address, city, district, postal_code, is_default";
 
@@ -17,7 +20,57 @@ export async function requireAccount(nextPath: string) {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) redirect(`/account/login?next=${encodeURIComponent(nextPath)}`);
+  await linkGuestOrders(user);
   return { supabase, user };
+}
+
+export async function listAccountOrders(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  userId: string,
+  limit = 100,
+) {
+  const res = await supabase
+    .from("orders")
+    .select(ORDER_COLUMNS, { count: "exact" })
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (res.error?.code === "42703") {
+    const fallback = await supabase
+      .from("orders")
+      .select(LEGACY_ORDER_COLUMNS, { count: "exact" })
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(limit);
+    return { orders: fallback.data ?? [], count: fallback.count ?? 0 };
+  }
+  return { orders: res.data ?? [], count: res.count ?? 0 };
+}
+
+export async function getAccountOrderByNumber(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  userId: string,
+  orderNumber: string,
+) {
+  const normalized = orderNumber.toUpperCase();
+  const res = await supabase
+    .from("orders")
+    .select(ORDER_COLUMNS)
+    .eq("order_number", normalized)
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (res.error?.code === "42703") {
+    const fallback = await supabase
+      .from("orders")
+      .select(LEGACY_ORDER_COLUMNS)
+      .eq("order_number", normalized)
+      .eq("user_id", userId)
+      .maybeSingle();
+    return fallback.data ?? null;
+  }
+  return res.data ?? null;
 }
 
 /** Only a confirmed email proves ownership of the orders placed with it. */

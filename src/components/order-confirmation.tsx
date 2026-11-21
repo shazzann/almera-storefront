@@ -11,10 +11,12 @@ import {
   buildWhatsAppCodDepositUrl,
   requiresCodDeposit,
 } from "@/lib/cod-deposit";
-import { BANK_DETAILS, buildWhatsAppBankSlipUrl } from "@/lib/whatsapp";
+import { BANK_DETAILS } from "@/lib/whatsapp";
 import { WardrobeMark } from "./brand";
 import type { PlacedOrder } from "./checkout-form";
 import { WhatsAppIcon } from "./icons";
+
+const WHATSAPP = (process.env.NEXT_PUBLIC_WHATSAPP_NUMBER ?? "94771234567").replace(/\D/g, "");
 
 const read = () => {
   try {
@@ -58,6 +60,8 @@ export function OrderConfirmation() {
             couponCode: data.couponCode,
             discountAmount: data.discountAmount,
             total: data.total,
+            paymentProofSubmitted: data.payment_proof_submitted,
+            soldOutFallback: data.status === "processing_failed",
           };
           setFetchedOrder(mapped);
           try {
@@ -97,7 +101,13 @@ export function OrderConfirmation() {
   const first = order.name.split(" ")[0];
   const needsCodDeposit = requiresCodDeposit(order.payment, order.total);
   const codRemainingBalance = Math.max(0, order.total - COD_MIN_DEPOSIT);
-  const waSlipUrl = buildWhatsAppBankSlipUrl(order.number, order.total, order.name);
+  const phoneRef = (() => {
+    const digits = order.phone.replace(/[\s-]/g, "").replace(/^\+94/, "0");
+    return digits.startsWith("0") ? digits : `0${digits}`;
+  })();
+  const waBankHelpUrl = `https://wa.me/${WHATSAPP}?text=${encodeURIComponent(
+    `Hi almera! I have a question about my bank transfer order *${order.number}* (${order.name} — ${formatLKR(order.total)}).`,
+  )}`;
   const waCodDepositUrl = buildWhatsAppCodDepositUrl(
     order.number,
     order.total,
@@ -116,10 +126,15 @@ export function OrderConfirmation() {
           body: "Your card payment was processed securely via Payments.lk. We’re preparing your pieces for dispatch.",
         }
       : order.payment === "bank"
-        ? {
-            title: "Send your payment slip",
-            body: "Transfer to our bank account below and share your slip on WhatsApp so we can dispatch your parcel.",
-          }
+        ? order.soldOutFallback
+          ? {
+              title: "Payment proof received — team reviewing",
+              body: "We saved your payment proof, though an item sold out while the order was being submitted. Our team has been notified and will reach out promptly to arrange a refund or replacement.",
+            }
+          : {
+              title: "Payment proof received",
+              body: "We’ve received your payment slip and are verifying your transfer with our bank. Once confirmed, we’ll pack and dispatch your parcel.",
+            }
         : needsCodDeposit
           ? {
               title: `Send your ${formatLKR(COD_MIN_DEPOSIT)} advance deposit slip`,
@@ -157,10 +172,36 @@ export function OrderConfirmation() {
         </div>
       )}
 
-      {order.payment === "bank" && (
-        <div className="mt-10 rounded-2xl border border-gold/40 bg-ivory p-6">
-          <p className="eyebrow text-gold-deep">Bank transfer instructions</p>
-          <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-5 gap-y-1.5 text-sm">
+      {order.payment === "bank" && order.soldOutFallback && (
+        <div className="mt-10 rounded-2xl border border-[#a5432f]/35 bg-[#a5432f]/5 p-6">
+          <p className="eyebrow text-[#a5432f]">Payment proof received — action needed</p>
+          <p className="mt-2 text-sm leading-relaxed text-ink/80">
+            Your payment proof for <strong>{formatLKR(order.total)}</strong> (Reference:{" "}
+            <span className="font-mono font-semibold">{phoneRef}</span>) was received, but one or more pieces in your bag sold out just before submission. Our team has been alerted and will contact you on{" "}
+            <strong>{order.phone}</strong> shortly to arrange an immediate refund or replacement.
+          </p>
+          <a
+            href={waBankHelpUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="btn btn-primary mt-5 w-full sm:w-auto"
+          >
+            <WhatsAppIcon className="size-4" /> Message us on WhatsApp
+          </a>
+        </div>
+      )}
+
+      {order.payment === "bank" && !order.soldOutFallback && (
+        <div className="mt-10 rounded-2xl border border-sage-deep/40 bg-sage-soft/30 p-6">
+          <p className="eyebrow text-sage-deep">Payment proof received — awaiting verification</p>
+          <p className="mt-2 text-sm leading-relaxed text-ink/75">
+            Thank you! We’ve received your uploaded payment proof and will verify your transfer with our bank shortly. Here are your transfer details for your records:
+          </p>
+          <dl className="mt-4 grid grid-cols-[auto_1fr] gap-x-5 gap-y-1.5 text-sm">
+            <dt className="text-ink/60">Amount</dt>
+            <dd className="font-semibold tabular-nums">{formatLKR(order.total)}</dd>
+            <dt className="text-ink/60">Reference</dt>
+            <dd className="font-mono font-semibold">{phoneRef}</dd>
             <dt className="text-ink/60">Bank</dt>
             <dd className="font-semibold">{BANK_DETAILS.bankName}</dd>
             <dt className="text-ink/60">Account name</dt>
@@ -169,16 +210,14 @@ export function OrderConfirmation() {
             <dd className="font-mono font-semibold">{BANK_DETAILS.accountNumber}</dd>
             <dt className="text-ink/60">Branch</dt>
             <dd className="font-semibold">{BANK_DETAILS.branch}</dd>
-            <dt className="text-ink/60">Reference</dt>
-            <dd className="font-mono font-semibold">{order.number}</dd>
           </dl>
           <a
-            href={waSlipUrl}
+            href={waBankHelpUrl}
             target="_blank"
             rel="noreferrer"
-            className="btn btn-primary mt-5 w-full sm:w-auto"
+            className="btn btn-ghost mt-5 w-full sm:w-auto"
           >
-            <WhatsAppIcon className="size-4" /> Send payment slip on WhatsApp
+            <WhatsAppIcon className="size-4" /> Need help? Message us on WhatsApp
           </a>
         </div>
       )}

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { purgeExpiredPaymentProofs } from "@/lib/payment-proofs.server";
 import { sweepExpiredStockHolds } from "@/lib/payments-lk.server";
 
 export async function GET(request: Request) {
@@ -13,11 +14,16 @@ export async function GET(request: Request) {
   }
 
   try {
-    const result = await sweepExpiredStockHolds();
+    const [result, purgeResult] = await Promise.all([
+      sweepExpiredStockHolds(),
+      purgeExpiredPaymentProofs(),
+    ]);
     return NextResponse.json({
       success: true,
       swept_count: result.sweptCount,
       order_numbers: result.orderNumbers,
+      purged_proofs_count: purgeResult.purgedCount,
+      purged_proof_orders: purgeResult.orderNumbers,
       timestamp: new Date().toISOString(),
     });
   } catch (error) {

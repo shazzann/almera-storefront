@@ -32,6 +32,12 @@ export type Order = {
   advance_deposit?: number | string | null;
   bank_slip_reference?: string | null;
   advance_deposit_note?: string | null;
+  payment_proof_path?: string | null;
+  payment_proof_mime?: string | null;
+  payment_proof_url?: string | null;
+  payment_proof_confirmed_at?: string | null;
+  payment_proof_purged_at?: string | null;
+  hold_expires_at?: string | null;
   refund_amount?: number | string | null;
   refund_reason?: string | null;
   created_at: string;
@@ -180,7 +186,7 @@ export const num = (v: unknown) => Number(v ?? 0) || 0;
 
 export const STATUS_LABEL: Record<string, string> = {
   pending: "New",
-  awaiting_bank_slip: "Waiting for slip",
+  awaiting_bank_slip: "Verify bank slip",
   payment_pending: "Card unpaid",
   payment_processing: "Card processing",
   paid: "Paid",
@@ -246,7 +252,10 @@ export function nextStep(o: Order): NextStep | null {
     case "paid":
       return { kind: "status", next: "confirmed", label: "Confirm order", body: "Moves this order to To pack." };
     case "awaiting_bank_slip":
-      return { kind: "deposit", label: "Record bank slip" };
+      return {
+        kind: "deposit",
+        label: o.payment_proof_path ? "Verify slip & confirm" : "Record bank slip",
+      };
     case "confirmed":
       return { kind: "status", next: "shipped", label: "Mark as shipped", body: "Use this once the courier has the parcel." };
     case "shipped":

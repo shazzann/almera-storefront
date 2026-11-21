@@ -3,7 +3,13 @@
 import { OrderItemPhoto } from "@/components/order-item-photo";
 import Link from "next/link";
 import { useState, type FormEvent } from "react";
-import { lookupOrderAction, type TrackedOrderResult } from "@/actions/orders";
+import {
+  lookupOrderAction,
+  submitBankPaymentProofAction,
+  type TrackedOrderResult,
+} from "@/actions/orders";
+import { BankProofUploader } from "@/components/bank-proof-uploader";
+import { cart } from "@/lib/cart";
 import { formatLKR } from "@/lib/catalog";
 import {
   COD_DEPOSIT_BANK,
@@ -12,9 +18,10 @@ import {
   getCodBalanceDue,
   requiresCodDeposit,
 } from "@/lib/cod-deposit";
-import { BANK_DETAILS, buildWhatsAppBankSlipUrl } from "@/lib/whatsapp";
 import { WardrobeMark } from "./brand";
 import { WhatsAppIcon } from "./icons";
+
+const WHATSAPP = (process.env.NEXT_PUBLIC_WHATSAPP_NUMBER ?? "94771234567").replace(/\D/g, "");
 
 const TIMELINE_STEPS = [
   { key: "placed", label: "Order placed" },
@@ -43,12 +50,19 @@ export function TrackOrderView() {
   const [error, setError] = useState<string | null>(null);
   const [order, setOrder] = useState<TrackedOrderResult | null>(null);
   const [searched, setSearched] = useState(false);
+  const [proofFile, setProofFile] = useState<File | null>(null);
+  const [proofError, setProofError] = useState<string | null>(null);
+  const [uploadingProof, setUploadingProof] = useState(false);
+  const [uploadSuccessMsg, setUploadSuccessMsg] = useState<string | null>(null);
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError(null);
     setLoading(true);
     setSearched(false);
+    setUploadSuccessMsg(null);
+    setProofFile(null);
+    setProofError(null);
     try {
       const res = await lookupOrderAction({ orderNumber, phone });
       setOrder(res);
@@ -60,6 +74,56 @@ export function TrackOrderView() {
       setLoading(false);
     }
   };
+
+  async function handleBankProofUpload() {
+    if (!order || !proofFile) {
+      setProofError("Please select an image or PDF payment proof under 1 MB.");
+      return;
+    }
+    setUploadingProof(true);
+    setProofError(null);
+    try {
+      const fd = new FormData();
+      fd.append("orderId", order.id);
+      fd.append("orderNumber", order.order_number);
+      fd.append("phone", order.phone);
+      fd.append("file", proofFile);
+
+      const res = await submitBankPaymentProofAction(fd);
+      if (!res.ok) {
+        setProofError(res.error);
+        return;
+      }
+
+      cart.clear();
+      try {
+        localStorage.removeItem("almera.pendingBankOrder");
+        sessionStorage.removeItem("almera.checkoutDraft");
+      } catch {}
+
+      setProofFile(null);
+      setUploadSuccessMsg(
+        res.sold_out_fallback
+          ? "Your payment proof was saved, though an item sold out after the reservation window. Our team has been notified and will reach out promptly."
+          : "Payment proof uploaded! Our team will verify your transfer and confirm your order shortly.",
+      );
+      setOrder((prev) =>
+        prev
+          ? {
+              ...prev,
+              status: res.status,
+              hold_expires_at: null,
+              payment_proof_submitted: true,
+              bank_slip_reference: prev.phone,
+            }
+          : prev,
+      );
+    } catch (err) {
+      setProofError(err instanceof Error ? err.message : "Could not upload payment proof.");
+    } finally {
+      setUploadingProof(false);
+    }
+  }
 
   const needsCodDeposit = order
     ? requiresCodDeposit(order.payment_method, order.total)
@@ -252,33 +316,64 @@ export function TrackOrderView() {
             </div>
           )}
 
-          {order.payment_method === "bank" && order.status === "awaiting_bank_slip" && (
-            <div className="rounded-2xl border border-gold/40 bg-ivory p-6">
-              <p className="eyebrow text-gold-deep">Bank Transfer Details</p>
-              <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-5 gap-y-1 text-sm">
-                <dt className="text-ink/60">Bank</dt>
-                <dd className="font-semibold">{BANK_DETAILS.bankName}</dd>
-                <dt className="text-ink/60">Account name</dt>
-                <dd className="font-semibold">{BANK_DETAILS.accountName}</dd>
-                <dt className="text-ink/60">Account number</dt>
-                <dd className="font-mono font-semibold">{BANK_DETAILS.accountNumber}</dd>
-                <dt className="text-ink/60">Reference</dt>
-                <dd className="font-mono font-semibold">{order.order_number}</dd>
-              </dl>
-              <a
-                href={buildWhatsAppBankSlipUrl(
-                  order.order_number,
-                  order.total,
-                  order.customer_name,
-                )}
-                target="_blank"
-                rel="noreferrer"
-                className="btn btn-primary mt-5 w-full sm:w-auto"
-              >
-                <WhatsAppIcon className="size-4" /> Send payment slip on WhatsApp
-              </a>
-            </div>
-          )}
+          {order.payment_method === "bank" &&
+            !order.payment_proof_submitted &&
+            (order.status === "payment_pending" || order.status === "awaiting_bank_slip") && (
+              <BankProofUploader
+                amount={order.total}
+                phoneReference={order.phone}
+                holdExpiresAt={order.hold_expires_at}
+                heldOrderNumber={order.order_number}
+                file={proofFile}
+                onFileChange={(f) => {
+                  setProofFile(f);
+                  if (f) setProofError(null);
+                }}
+                fileError={proofError}
+                onFileError={setProofError}
+                submitting={uploadingProof}
+                onSubmitProof={handleBankProofUpload}
+                submitLabel="Confirm payment & upload proof"
+              />
+            )}
+
+          {order.payment_method === "bank" &&
+            order.status === "awaiting_bank_slip" &&
+            order.payment_proof_submitted && (
+              <div className="rounded-2xl border border-sage-deep/40 bg-sage-soft/35 p-6">
+                <p className="eyebrow text-sage-deep">Payment proof uploaded — awaiting admin verification</p>
+                <p className="mt-2 text-sm leading-relaxed text-ink/75">
+                  {uploadSuccessMsg ?? (
+                    <>
+                      We’ve received your payment slip for <strong>{formatLKR(order.total)}</strong> (Reference:{" "}
+                      <span className="font-mono font-semibold">{order.bank_slip_reference || order.phone}</span>) and will confirm your order shortly.
+                    </>
+                  )}
+                </p>
+                <a
+                  href={`https://wa.me/${WHATSAPP}?text=${encodeURIComponent(
+                    `Hi almera! I have a question about my bank transfer order *${order.order_number}*.`,
+                  )}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="btn btn-ghost mt-4 w-full sm:w-auto"
+                >
+                  <WhatsAppIcon className="size-4" /> Need help? Message us on WhatsApp
+                </a>
+              </div>
+            )}
+
+          {order.payment_method === "bank" &&
+            order.status === "processing_failed" &&
+            order.payment_proof_submitted && (
+              <div className="rounded-2xl border border-[#a5432f]/35 bg-[#a5432f]/5 p-6">
+                <p className="eyebrow text-[#a5432f]">Payment proof received — team reviewing</p>
+                <p className="mt-2 text-sm leading-relaxed text-ink/80">
+                  {uploadSuccessMsg ??
+                    "We received your payment slip, though an item sold out before confirmation. Our team has been notified and will reach out promptly to arrange a refund or replacement."}
+                </p>
+              </div>
+            )}
 
           {/* Items & Payment Breakdown */}
           <div className="rounded-2xl border border-line bg-ivory p-6">

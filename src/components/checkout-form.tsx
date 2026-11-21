@@ -9,7 +9,12 @@ import {
   upsertCustomerAddressAction,
   type CustomerAddressRecord,
 } from "@/actions/auth";
-import { getPublicCouponsAction, placeOrderAction } from "@/actions/orders";
+import {
+  getPublicCouponsAction,
+  placeOrderAction,
+  placeOrderWithBankProofAction,
+  submitBankPaymentProofAction,
+} from "@/actions/orders";
 import { DELIVERY, DISTRICTS, formatLKR, type DeliveryMethod } from "@/lib/catalog";
 import { cart, linePrice, totals, useCart, type CartLine } from "@/lib/cart";
 import {
@@ -19,7 +24,7 @@ import {
   requiresCodDeposit,
 } from "@/lib/cod-deposit";
 import type { PublicCouponSummary } from "@/lib/coupons.server";
-import { BANK_DETAILS } from "@/lib/whatsapp";
+import { BankProofUploader } from "./bank-proof-uploader";
 import { WardrobeMark } from "./brand";
 
 type Payment = "cod" | "bank" | "card";
@@ -56,6 +61,8 @@ export type PlacedOrder = {
   couponCode?: string | null;
   discountAmount?: number;
   total: number;
+  paymentProofSubmitted?: boolean;
+  soldOutFallback?: boolean;
 };
 
 const PHONE = /^(?:\+94|0)?7\d{8}$/;
@@ -100,8 +107,84 @@ export function CheckoutForm() {
   const [couponError, setCouponError] = useState<string | null>(null);
   const [publicCoupons, setPublicCoupons] = useState<PublicCouponSummary[]>([]);
 
+  // Bank transfer proof & 1-hour hold state
+  const [bankProofFile, setBankProofFile] = useState<File | null>(null);
+  const [bankProofError, setBankProofError] = useState<string | null>(null);
+  const [heldBankOrder, setHeldBankOrder] = useState<{
+    orderId: string;
+    orderNumber: string;
+    holdExpiresAt: string;
+    idempotencyKey?: string;
+  } | null>(null);
+  const [startingBankHold, setStartingBankHold] = useState(false);
+  const bankProofSectionRef = useRef<HTMLDivElement>(null);
+  const draftRestoredRef = useRef(false);
+
   // Idempotency key generated lazily on first submission attempt
   const idempotencyKeyRef = useRef<string | null>(null);
+
+  // Restore draft form & active 1-hour bank hold (protects mobile browser tab eviction)
+  useEffect(() => {
+    try {
+      const rawDraft = sessionStorage.getItem("almera.checkoutDraft");
+      if (rawDraft) {
+        const parsed = JSON.parse(rawDraft) as { form?: Partial<Form>; payment?: Payment };
+        if (parsed.form) {
+          setForm((prev) => ({
+            name: prev.name || parsed.form?.name || "",
+            phone: prev.phone || parsed.form?.phone || "",
+            email: prev.email || parsed.form?.email || "",
+            address: prev.address || parsed.form?.address || "",
+            city: prev.city || parsed.form?.city || "",
+            district: prev.district || parsed.form?.district || "",
+            note: prev.note || parsed.form?.note || "",
+          }));
+        }
+        if (parsed.payment && ["cod", "bank", "card"].includes(parsed.payment)) {
+          setPayment(parsed.payment);
+        }
+      }
+    } catch {}
+
+    try {
+      const rawHold = localStorage.getItem("almera.pendingBankOrder");
+      if (rawHold) {
+        const parsed = JSON.parse(rawHold) as {
+          orderId?: string;
+          orderNumber?: string;
+          holdExpiresAt?: string;
+          idempotencyKey?: string;
+        };
+        if (
+          parsed.orderId &&
+          parsed.orderNumber &&
+          parsed.holdExpiresAt &&
+          new Date(parsed.holdExpiresAt).getTime() > Date.now()
+        ) {
+          setHeldBankOrder({
+            orderId: parsed.orderId,
+            orderNumber: parsed.orderNumber,
+            holdExpiresAt: parsed.holdExpiresAt,
+            idempotencyKey: parsed.idempotencyKey,
+          });
+          if (parsed.idempotencyKey) {
+            idempotencyKeyRef.current = parsed.idempotencyKey;
+          }
+        } else {
+          localStorage.removeItem("almera.pendingBankOrder");
+        }
+      }
+    } catch {}
+
+    draftRestoredRef.current = true;
+  }, []);
+
+  useEffect(() => {
+    if (!draftRestoredRef.current) return;
+    try {
+      sessionStorage.setItem("almera.checkoutDraft", JSON.stringify({ form, payment }));
+    } catch {}
+  }, [form, payment]);
 
   // Customer authentication & pre-fill state
   const [customerData, setCustomerData] = useState<{
@@ -213,6 +296,85 @@ export function CheckoutForm() {
     }
   }
 
+  const cleanPhoneInput = form.phone.replace(/[\s-]/g, "");
+  const normalizedPhoneRef = PHONE.test(cleanPhoneInput)
+    ? (() => {
+        const digits = cleanPhoneInput.replace(/^\+94/, "0");
+        return digits.startsWith("0") ? digits : `0${digits}`;
+      })()
+    : null;
+
+  function ensureIdempotencyKey() {
+    if (!idempotencyKeyRef.current) {
+      idempotencyKeyRef.current =
+        typeof crypto !== "undefined" && "randomUUID" in crypto
+          ? crypto.randomUUID()
+          : `00000000-0000-4000-8000-${String(Date.now()).padStart(12, "0").slice(-12)}`;
+    }
+    return idempotencyKeyRef.current;
+  }
+
+  function buildOrderPayload(paymentMethod: Payment, idempotencyKey: string) {
+    return {
+      name: form.name.trim(),
+      phone: form.phone.trim(),
+      email: form.email.trim() || null,
+      address: form.address.trim(),
+      city: form.city.trim(),
+      district: form.district,
+      note: form.note.trim() || null,
+      payment_method: paymentMethod,
+      coupon_code: appliedCoupon?.code ?? null,
+      idempotency_key: idempotencyKey,
+      items: lines.map((l) => ({
+        slug: l.slug,
+        stitching: l.stitching,
+        size: l.size ?? null,
+        quantity: l.qty,
+      })),
+    };
+  }
+
+  async function startBankHold(options: { silent?: boolean } = {}) {
+    if (heldBankOrder || startingBankHold || lines.length === 0) return;
+    const found = validate(form);
+    if (Object.keys(found).length > 0) {
+      if (!options.silent) {
+        setErrors(found);
+        const first = Object.keys(found)[0];
+        document.getElementById(`f-${first}`)?.focus();
+      }
+      return;
+    }
+
+    setStartingBankHold(true);
+    if (!options.silent) setServerError(null);
+    try {
+      const key = ensureIdempotencyKey();
+      const result = await placeOrderAction(buildOrderPayload("bank", key));
+      if (result.order_id && result.hold_expires_at) {
+        const hold = {
+          orderId: result.order_id,
+          orderNumber: result.order_number,
+          holdExpiresAt: result.hold_expires_at,
+          idempotencyKey: key,
+        };
+        setHeldBankOrder(hold);
+        try {
+          localStorage.setItem("almera.pendingBankOrder", JSON.stringify(hold));
+        } catch {}
+      }
+    } catch (err) {
+      if (!options.silent) {
+        setServerError(
+          err instanceof Error ? err.message : "Could not reserve your items. Please try again.",
+        );
+      }
+    } finally {
+      setStartingBankHold(false);
+    }
+  }
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setServerError(null);
@@ -223,32 +385,93 @@ export function CheckoutForm() {
       document.getElementById(`f-${first}`)?.focus();
       return;
     }
+
+    if (payment === "bank" && !bankProofFile) {
+      setBankProofError("Please upload your payment proof (image or PDF under 1 MB) to confirm your order.");
+      bankProofSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
+
     setPlacing(true);
     try {
-      if (!idempotencyKeyRef.current) {
-        idempotencyKeyRef.current =
-          typeof crypto !== "undefined" && "randomUUID" in crypto
-            ? crypto.randomUUID()
-            : `00000000-0000-4000-8000-${String(Date.now()).padStart(12, "0").slice(-12)}`;
+      let placedOrder: PlacedOrder;
+      let cardCheckoutUrl: string | undefined;
+
+      if (payment === "bank" && bankProofFile) {
+        if (heldBankOrder) {
+          const fd = new FormData();
+          fd.append("orderId", heldBankOrder.orderId);
+          fd.append("orderNumber", heldBankOrder.orderNumber);
+          fd.append("phone", form.phone.trim());
+          fd.append("file", bankProofFile);
+          const res = await submitBankPaymentProofAction(fd);
+          if (!res.ok) {
+            throw new Error(res.error);
+          }
+          placedOrder = {
+            number: res.order_number,
+            name: form.name.trim(),
+            phone: form.phone.trim(),
+            address: `${form.address.trim()}, ${form.city.trim()}`,
+            district: form.district,
+            method,
+            payment: "bank",
+            lines,
+            subtotal: t.subtotal,
+            delivery: t.delivery,
+            couponCode: appliedCoupon?.code ?? null,
+            discountAmount: t.discountAmount,
+            total: finalTotal,
+            paymentProofSubmitted: true,
+            soldOutFallback: res.sold_out_fallback,
+          };
+        } else {
+          const key = ensureIdempotencyKey();
+          const fd = new FormData();
+          fd.append("payload", JSON.stringify(buildOrderPayload("bank", key)));
+          fd.append("file", bankProofFile);
+          const result = await placeOrderWithBankProofAction(fd);
+          placedOrder = {
+            number: result.order_number,
+            name: form.name.trim(),
+            phone: form.phone.trim(),
+            address: `${form.address.trim()}, ${form.city.trim()}`,
+            district: form.district,
+            method,
+            payment: "bank",
+            lines,
+            subtotal: result.subtotal,
+            delivery: result.delivery_fee,
+            couponCode: result.coupon_code,
+            discountAmount: result.discount_amount,
+            total: result.total,
+            paymentProofSubmitted: true,
+            soldOutFallback: result.sold_out_fallback,
+          };
+        }
+      } else {
+        if (heldBankOrder && idempotencyKeyRef.current === heldBankOrder.idempotencyKey) {
+          idempotencyKeyRef.current = null;
+        }
+        const key = ensureIdempotencyKey();
+        const result = await placeOrderAction(buildOrderPayload(payment, key));
+        cardCheckoutUrl = result.checkout_url;
+        placedOrder = {
+          number: result.order_number,
+          name: form.name.trim(),
+          phone: form.phone.trim(),
+          address: `${form.address.trim()}, ${form.city.trim()}`,
+          district: form.district,
+          method,
+          payment,
+          lines,
+          subtotal: result.subtotal,
+          delivery: result.delivery_fee,
+          couponCode: result.coupon_code,
+          discountAmount: result.discount_amount,
+          total: result.total,
+        };
       }
-      const result = await placeOrderAction({
-        name: form.name.trim(),
-        phone: form.phone.trim(),
-        email: form.email.trim() || null,
-        address: form.address.trim(),
-        city: form.city.trim(),
-        district: form.district,
-        note: form.note.trim() || null,
-        payment_method: payment,
-        coupon_code: appliedCoupon?.code ?? null,
-        idempotency_key: idempotencyKeyRef.current,
-        items: lines.map((l) => ({
-          slug: l.slug,
-          stitching: l.stitching,
-          size: l.size ?? null,
-          quantity: l.qty,
-        })),
-      });
 
       if (customerData && saveAddressToAccount) {
         upsertCustomerAddressAction({
@@ -262,33 +485,24 @@ export function CheckoutForm() {
         }).catch(() => {});
       }
 
-      const order: PlacedOrder = {
-        number: result.order_number,
-        name: form.name.trim(),
-        phone: form.phone.trim(),
-        address: `${form.address.trim()}, ${form.city.trim()}`,
-        district: form.district,
-        method,
-        payment,
-        lines,
-        subtotal: result.subtotal,
-        delivery: result.delivery_fee,
-        couponCode: result.coupon_code,
-        discountAmount: result.discount_amount,
-        total: result.total,
-      };
       try {
-        sessionStorage.setItem("almera.lastOrder", JSON.stringify(order));
+        sessionStorage.setItem("almera.lastOrder", JSON.stringify(placedOrder));
+        sessionStorage.removeItem("almera.checkoutDraft");
+      } catch { }
+      try {
+        localStorage.removeItem("almera.pendingBankOrder");
       } catch { }
 
       // Section 5.1: Card payments keep the cart intact during hosted checkout redirect
-      if (payment === "card" && result.checkout_url) {
-        window.location.href = result.checkout_url;
+      if (payment === "card" && cardCheckoutUrl) {
+        window.location.href = cardCheckoutUrl;
         return;
       }
 
       // COD & Bank Transfer: clear cart immediately upon order placement
       cart.clear();
+      setHeldBankOrder(null);
+      setBankProofFile(null);
       setForm(EMPTY_FORM);
       router.push("/order-confirmed");
     } catch (err) {
@@ -730,7 +944,7 @@ export function CheckoutForm() {
               checked={payment === "bank"}
               onChange={() => setPayment("bank")}
               title="Bank transfer"
-              sub="Transfer to our bank account and share your slip on WhatsApp. Your order is dispatched once the payment slip is received."
+              sub="Transfer directly to our bank account using your mobile number as the reference and upload your payment slip (image or PDF < 1 MB) below. You have a 1-hour reservation window to complete payment."
             />
           </div>
           {payment === "card" && (
@@ -766,18 +980,29 @@ export function CheckoutForm() {
             </div>
           )}
           {payment === "bank" && (
-            <div className="mt-3 rounded-2xl border border-line bg-ivory p-4 text-sm">
-              <p className="eyebrow text-gold-deep">Bank account details</p>
-              <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
-                <dt className="text-ink/60">Bank</dt>
-                <dd className="font-medium">{BANK_DETAILS.bankName}</dd>
-                <dt className="text-ink/60">Account name</dt>
-                <dd className="font-medium">{BANK_DETAILS.accountName}</dd>
-                <dt className="text-ink/60">Account number</dt>
-                <dd className="font-mono font-semibold">{BANK_DETAILS.accountNumber}</dd>
-                <dt className="text-ink/60">Branch</dt>
-                <dd className="font-medium">{BANK_DETAILS.branch}</dd>
-              </dl>
+            <div ref={bankProofSectionRef}>
+              <BankProofUploader
+                amount={finalTotal}
+                phoneReference={normalizedPhoneRef}
+                onRequestPhoneFocus={() => {
+                  const el = document.getElementById("f-phone");
+                  el?.scrollIntoView({ behavior: "smooth", block: "center" });
+                  el?.focus();
+                }}
+                holdExpiresAt={heldBankOrder?.holdExpiresAt ?? null}
+                heldOrderNumber={heldBankOrder?.orderNumber ?? null}
+                onStartHold={() => startBankHold({ silent: false })}
+                onAccountNumberCopied={() => startBankHold({ silent: true })}
+                startingHold={startingBankHold}
+                file={bankProofFile}
+                onFileChange={(f) => {
+                  setBankProofFile(f);
+                  if (f) setBankProofError(null);
+                }}
+                fileError={bankProofError}
+                onFileError={setBankProofError}
+                submitting={placing}
+              />
             </div>
           )}
         </Section>
@@ -802,10 +1027,14 @@ export function CheckoutForm() {
           {placing
             ? payment === "card"
               ? "Holding items & opening card payment…"
-              : "Placing your order…"
+              : payment === "bank"
+                ? "Uploading payment proof & placing order…"
+                : "Placing your order…"
             : payment === "card"
               ? `Pay with card · ${formatLKR(finalTotal)}`
-              : `Place order · ${formatLKR(finalTotal)}`}
+              : payment === "bank"
+                ? `Confirm payment & place order · ${formatLKR(finalTotal)}`
+                : `Place order · ${formatLKR(finalTotal)}`}
         </button>
       </form>
 

@@ -5,7 +5,7 @@ import {
   getCodBalanceDue,
   requiresCodDeposit,
 } from "@/lib/cod-deposit";
-import { BANK_DETAILS, buildWhatsAppBankSlipUrl } from "@/lib/whatsapp";
+import { BANK_DETAILS } from "@/lib/whatsapp";
 
 export type EmailContent = { subject: string; html: string; text: string };
 
@@ -203,15 +203,21 @@ export function orderPlacedEmail(input: { order: EmailOrder; items: EmailOrderIt
       `Send your slip on WhatsApp: ${whatsapp}`,
     );
   } else if (order.payment_method === "bank") {
-    const whatsapp = buildWhatsAppBankSlipUrl(number, total, order.customer_name);
+    const ref = order.bank_slip_reference || order.phone;
     paymentHtml = panel(
-      panelTitle(`Action needed: transfer ${formatLKR(total)}`) +
-        paragraph("Please transfer the full amount and send us the slip. We'll confirm your order once we receive it.") +
-        bankRows(number) +
-        button("Send my slip on WhatsApp", whatsapp),
+      panelTitle("Payment slip received — awaiting verification") +
+        paragraph(
+          `We've received your uploaded payment proof for <strong>${formatLKR(total)}</strong> (Reference: <strong style="font-family:monospace;">${escapeHtml(ref)}</strong>). Our team will verify your transfer and confirm your order shortly.`,
+        ) +
+        bankRows(ref),
       true,
     );
-    paymentText = text(`ACTION NEEDED: TRANSFER ${formatLKR(total)}`, "", bankText(number), "", `Send your slip on WhatsApp: ${whatsapp}`);
+    paymentText = text(
+      "PAYMENT SLIP RECEIVED — AWAITING VERIFICATION",
+      `We've received your uploaded payment proof for ${formatLKR(total)} (Reference: ${ref}). Our team will verify your transfer and confirm your order shortly.`,
+      "",
+      bankText(ref),
+    );
   } else if (order.payment_method === "card") {
     paymentHtml = panel(panelTitle("Paid by card") + paragraph(`We've received your payment of <strong>${formatLKR(total)}</strong>. There's nothing more to pay.`));
     paymentText = `Paid by card: ${formatLKR(total)}. There's nothing more to pay.`;

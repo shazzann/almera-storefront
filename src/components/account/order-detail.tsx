@@ -2,11 +2,16 @@
 
 import { OrderItemPhoto } from "@/components/order-item-photo";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { submitBankPaymentProofAction } from "@/actions/orders";
 import { CopyIcon } from "@/components/admin/admin-icons";
+import { BankProofUploader } from "@/components/bank-proof-uploader";
 import { CheckIcon, ChevronIcon, WhatsAppIcon } from "@/components/icons";
+import { cart } from "@/lib/cart";
 import { formatLKR } from "@/lib/catalog";
 import { COD_MIN_DEPOSIT, getCodBalanceDue } from "@/lib/cod-deposit";
-import { BANK_DETAILS, buildWhatsAppBankSlipUrl, buildWhatsAppCodDepositUrl } from "@/lib/whatsapp";
+import { BANK_DETAILS, buildWhatsAppCodDepositUrl } from "@/lib/whatsapp";
 import { useAccount } from "./context";
 import { StatusBadge } from "./order-card";
 import { ORDER_STEPS, currentStep, formatDate, num, paymentNeeded, statusOf } from "./order-status";
@@ -31,7 +36,7 @@ export function OrderDetailScreen({ order }: { order: AccountOrder }) {
           <h1 className="truncate text-lg leading-tight font-semibold tabular-nums">{order.order_number}</h1>
           <p className="text-[0.85rem] text-ink/60">Placed {formatDate(order.created_at)}</p>
         </div>
-        <span className="pr-2"><StatusBadge status={order.status} /></span>
+        <span className="pr-2"><StatusBadge status={order.status} order={order} /></span>
       </div>
 
       <div className="mt-2 space-y-3 px-4 lg:px-0">
@@ -92,7 +97,7 @@ export function OrderDetailScreen({ order }: { order: AccountOrder }) {
 
 function Journey({ order }: { order: AccountOrder }) {
   const step = currentStep(order.status);
-  const { note } = statusOf(order.status);
+  const { note } = statusOf(order.status, order);
 
   return (
     <section className={cardClass}>
@@ -120,22 +125,106 @@ function Journey({ order }: { order: AccountOrder }) {
 }
 
 function PaymentAction({ order }: { order: AccountOrder }) {
+  const { base, toast } = useAccount();
+  const router = useRouter();
+  const [file, setFile] = useState<File | null>(null);
+  const [fileError, setFileError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
   const need = paymentNeeded(order);
   if (!need) return null;
 
   const total = num(order.total);
-  const deposit = need === "deposit";
-  const slipUrl = deposit
-    ? buildWhatsAppCodDepositUrl(order.order_number, total, order.customer_name, COD_MIN_DEPOSIT)
-    : buildWhatsAppBankSlipUrl(order.order_number, total, order.customer_name);
+
+  if (need === "bank_verifying") {
+    return (
+      <section className="rounded-[1.25rem] border border-sage-deep/35 bg-sage-soft/45 p-4">
+        <h2 className="font-semibold text-charcoal">Payment proof uploaded — awaiting verification</h2>
+        <p className="mt-1 text-[0.92rem] leading-snug text-ink/75">
+          We are verifying your transfer of <strong>{formatLKR(total)}</strong> (Reference:{" "}
+          <span className="font-mono font-semibold">{order.bank_slip_reference || order.phone}</span>) and will confirm your order shortly.
+        </p>
+      </section>
+    );
+  }
+
+  if (need === "bank_upload") {
+    async function handleUpload() {
+      if (!file) {
+        setFileError("Please select an image or PDF payment proof under 1 MB.");
+        return;
+      }
+      if (base === "/account-preview") {
+        toast("Payment proof upload works on live orders.");
+        return;
+      }
+      setSubmitting(true);
+      setFileError(null);
+      try {
+        const fd = new FormData();
+        fd.append("orderId", order.id);
+        fd.append("orderNumber", order.order_number);
+        fd.append("phone", order.phone);
+        fd.append("file", file);
+
+        const res = await submitBankPaymentProofAction(fd);
+        if (!res.ok) {
+          setFileError(res.error);
+          toast(res.error, "err");
+          return;
+        }
+
+        cart.clear();
+        try {
+          localStorage.removeItem("almera.pendingBankOrder");
+          sessionStorage.removeItem("almera.checkoutDraft");
+        } catch {}
+
+        toast(
+          res.sold_out_fallback
+            ? "Proof received — an item sold out after the hold window, our team will contact you."
+            : "Payment proof uploaded! We'll verify and confirm your order soon.",
+        );
+        setFile(null);
+        router.refresh();
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "Could not upload payment proof.";
+        setFileError(msg);
+        toast(msg, "err");
+      } finally {
+        setSubmitting(false);
+      }
+    }
+
+    return (
+      <section className="space-y-2">
+        <BankProofUploader
+          amount={total}
+          phoneReference={order.phone}
+          holdExpiresAt={order.hold_expires_at ?? null}
+          heldOrderNumber={order.order_number}
+          file={file}
+          onFileChange={(f) => {
+            setFile(f);
+            if (f) setFileError(null);
+          }}
+          fileError={fileError}
+          onFileError={setFileError}
+          submitting={submitting}
+          onSubmitProof={handleUpload}
+          submitLabel="Confirm payment & upload proof"
+        />
+      </section>
+    );
+  }
+
+  const slipUrl = buildWhatsAppCodDepositUrl(order.order_number, total, order.customer_name, COD_MIN_DEPOSIT);
 
   return (
     <section className="rounded-[1.25rem] border border-gold/50 bg-gold/10 p-4">
-      <h2 className="font-semibold">{deposit ? `Send a ${formatLKR(COD_MIN_DEPOSIT)} deposit` : `Transfer ${formatLKR(total)}`}</h2>
+      <h2 className="font-semibold">{`Send a ${formatLKR(COD_MIN_DEPOSIT)} deposit`}</h2>
       <p className="mt-1 text-[0.92rem] leading-snug text-ink/75">
-        {deposit
-          ? `This confirms your order. You pay the remaining ${formatLKR(Math.max(0, total - COD_MIN_DEPOSIT))} to the courier.`
-          : "Then send us the slip, and we’ll start preparing your order."}
+        {`This confirms your order. You pay the remaining ${formatLKR(Math.max(0, total - COD_MIN_DEPOSIT))} to the courier.`}
       </p>
       <dl className="mt-3 divide-y divide-line rounded-xl bg-ivory px-3.5">
         <CopyRow label="Bank" value={BANK_DETAILS.bankName} />

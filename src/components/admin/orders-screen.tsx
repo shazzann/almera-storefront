@@ -89,6 +89,11 @@ export function OrderCard({ order: o }: { order: Order }) {
         </span>
         <span className="font-semibold tabular-nums">{formatLKR(num(o.total))}</span>
       </div>
+      {o.payment_method === "bank" && o.status === "awaiting_bank_slip" && o.payment_proof_path && (
+        <p className="mt-2.5 rounded-lg bg-gold/15 px-3 py-1.5 text-[0.82rem] font-medium text-gold-deep">
+          Payment proof uploaded — tap to verify
+        </p>
+      )}
       {needsDeposit(o) && (
         <p className="mt-2.5 rounded-lg bg-gold/15 px-3 py-1.5 text-[0.82rem] font-medium text-gold-deep">Waiting for COD deposit</p>
       )}

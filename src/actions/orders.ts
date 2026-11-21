@@ -13,7 +13,7 @@ import {
 } from "@/lib/catalog";
 import { revalidateCatalogCache } from "@/lib/cache-invalidation.server";
 import { requiresCodDeposit } from "@/lib/cod-deposit";
-import { notifyOrderPlaced } from "@/lib/email/notifications.server";
+import { notifyAdminRefundNeeded, notifyOrderPlaced } from "@/lib/email/notifications.server";
 import {
   COUPON_RATE_LIMIT,
   ORDER_RATE_LIMIT,
@@ -32,7 +32,12 @@ import {
   buildCheckoutDescription,
   getPaymentsLkClient,
   getSiteOrigin,
+  mapOrderItemsToStockTargets,
 } from "@/lib/payments-lk.server";
+import {
+  removePaymentProofFile,
+  validateAndStorePaymentProof,
+} from "@/lib/payment-proofs.server";
 
 const SL_PHONE_REGEX = /^(?:\+94|0)?7\d{8}$/;
 
@@ -73,6 +78,7 @@ const placeOrderSchema = z.object({
 export type PlaceOrderInput = z.infer<typeof placeOrderSchema>;
 
 export type PlaceOrderResult = {
+  order_id?: string;
   order_number: string;
   subtotal: number;
   delivery_fee: number;
@@ -82,6 +88,8 @@ export type PlaceOrderResult = {
   status: string;
   payment_method: "cod" | "bank" | "card";
   checkout_url?: string;
+  hold_expires_at?: string | null;
+  sold_out_fallback?: boolean;
 };
 
 export type CouponResult = {
@@ -311,55 +319,39 @@ async function resolveAuthoritativeLines(items: z.infer<typeof orderItemInputSch
   return verifiedLines;
 }
 
-export async function placeOrderAction(rawInput: PlaceOrderInput) {
-  const data = placeOrderSchema.parse(rawInput);
-  const reqHeaders = await headers();
-  enforceRateLimit(getClientIp({ headers: reqHeaders }), ORDER_RATE_LIMIT);
+const BANK_PROOF_RATE_LIMIT = {
+  namespace: "submit-bank-proof",
+  maxRequests: 15,
+  windowMs: 15 * 60 * 1000,
+};
 
-  const supabase = getSupabaseAdmin();
-  const normalizedPhone = await normalizeSlPhone(data.phone);
-  const cleanEmail = data.email ? data.email.trim().toLowerCase() : null;
-
-  let authenticatedUserId: string | null = null;
+async function getAuthenticatedUser(): Promise<{ id: string | null; email: string | null }> {
   try {
     const userClient = await createSupabaseServerClient();
     const {
       data: { user },
     } = await userClient.auth.getUser();
     if (user?.id) {
-      authenticatedUserId = user.id;
+      return { id: user.id, email: user.email?.trim().toLowerCase() ?? null };
     }
   } catch {
     // guest checkout
   }
+  return { id: null, email: null };
+}
 
-  if (data.idempotency_key) {
-    const { data: existing } = await supabase
-      .from("orders")
-      .select("order_number,subtotal,delivery_fee,discount_amount,coupon_code,total,status,payment_method")
-      .eq("idempotency_key", data.idempotency_key)
-      .maybeSingle();
-    if (existing) {
-      return {
-        order_number: existing.order_number as string,
-        subtotal: Number(existing.subtotal),
-        delivery_fee: Number(existing.delivery_fee),
-        discount_amount: Number(existing.discount_amount),
-        coupon_code: existing.coupon_code as string | null,
-        total: Number(existing.total),
-        status: existing.status as string,
-        payment_method: existing.payment_method as "cod" | "bank" | "card",
-      };
-    }
-  }
-
-  const verifiedLines = await resolveAuthoritativeLines(data.items);
+async function computeOrderPricing(
+  items: z.infer<typeof orderItemInputSchema>[],
+  couponCode: string | null | undefined,
+  customer: { phone: string; email: string | null; user_id: string | null },
+) {
+  const verifiedLines = await resolveAuthoritativeLines(items);
   const subtotal = verifiedLines.reduce((sum, l) => sum + l.unit_price * l.quantity, 0);
   const pieces = verifiedLines.reduce((n, l) => n + l.quantity, 0);
   const deliveryFee = subtotal >= FREE_DELIVERY_FROM ? 0 : deliveryFeeFor(pieces);
 
   let discountAmount = 0;
-  const normalizedCoupon = data.coupon_code?.trim().toUpperCase() || null;
+  const normalizedCoupon = couponCode?.trim().toUpperCase() || null;
   if (normalizedCoupon) {
     const couponRes = await validateAndCalculateCoupon({
       code: normalizedCoupon,
@@ -373,11 +365,7 @@ export async function placeOrderAction(rawInput: PlaceOrderInput) {
         subcategory: l.subcategory,
       })),
       deliveryFee,
-      customer: {
-        phone: normalizedPhone,
-        email: cleanEmail,
-        user_id: authenticatedUserId,
-      },
+      customer,
       requireCustomerForFirstOrder: true,
     });
     if (!couponRes.valid) {
@@ -387,14 +375,105 @@ export async function placeOrderAction(rawInput: PlaceOrderInput) {
   }
 
   const total = Math.max(0, subtotal + deliveryFee - discountAmount);
-  const isCard = data.payment_method === "card";
-  const holdExpiry = isCard ? new Date(Date.now() + 15 * 60 * 1000) : null;
-  const initialStatus = isCard
-    ? "payment_pending"
-    : data.payment_method === "bank" || requiresCodDeposit(data.payment_method, total)
-      ? "awaiting_bank_slip"
-      : "pending";
   const dbStockTargets = verifiedLines.map((l) => l.stockTarget);
+
+  return {
+    verifiedLines,
+    subtotal,
+    deliveryFee,
+    normalizedCoupon,
+    discountAmount,
+    total,
+    dbStockTargets,
+  };
+}
+
+function mapExistingOrderToResult(existing: any): PlaceOrderResult {
+  return {
+    order_id: existing.id as string,
+    order_number: existing.order_number as string,
+    subtotal: Number(existing.subtotal),
+    delivery_fee: Number(existing.delivery_fee),
+    discount_amount: Number(existing.discount_amount),
+    coupon_code: existing.coupon_code as string | null,
+    total: Number(existing.total),
+    status: existing.status as string,
+    payment_method: existing.payment_method as "cod" | "bank" | "card",
+    hold_expires_at: (existing.hold_expires_at as string | null) ?? null,
+    sold_out_fallback: existing.status === "processing_failed",
+  };
+}
+
+async function insertOrderItemsRows(
+  supabase: ReturnType<typeof getSupabaseAdmin>,
+  orderId: string,
+  verifiedLines: Awaited<ReturnType<typeof resolveAuthoritativeLines>>,
+) {
+  const { error: itemsErr } = await supabase.from("order_items").insert(
+    verifiedLines.map((l) => ({
+      order_id: orderId,
+      product_id: l.product_id,
+      variant_id: l.variant_id,
+      product_slug: l.product_slug,
+      product_name: l.product_name,
+      stitching: l.stitching,
+      size: l.size,
+      unit_price: l.unit_price,
+      quantity: l.quantity,
+      image_url: l.image_url,
+    })),
+  );
+  if (itemsErr) throw itemsErr;
+}
+
+export async function placeOrderAction(rawInput: PlaceOrderInput): Promise<PlaceOrderResult> {
+  const data = placeOrderSchema.parse(rawInput);
+  const reqHeaders = await headers();
+  enforceRateLimit(getClientIp({ headers: reqHeaders }), ORDER_RATE_LIMIT);
+
+  const supabase = getSupabaseAdmin();
+  const normalizedPhone = await normalizeSlPhone(data.phone);
+  const cleanEmail = data.email ? data.email.trim().toLowerCase() : null;
+  const { id: authenticatedUserId } = await getAuthenticatedUser();
+
+  if (data.idempotency_key) {
+    const { data: existing } = await supabase
+      .from("orders")
+      .select("id,order_number,subtotal,delivery_fee,discount_amount,coupon_code,total,status,payment_method,hold_expires_at")
+      .eq("idempotency_key", data.idempotency_key)
+      .maybeSingle();
+    if (existing) {
+      return mapExistingOrderToResult(existing);
+    }
+  }
+
+  const {
+    verifiedLines,
+    subtotal,
+    deliveryFee,
+    normalizedCoupon,
+    discountAmount,
+    total,
+    dbStockTargets,
+  } = await computeOrderPricing(data.items, data.coupon_code, {
+    phone: normalizedPhone,
+    email: cleanEmail,
+    user_id: authenticatedUserId,
+  });
+
+  const isCard = data.payment_method === "card";
+  const isBankHold = data.payment_method === "bank";
+  const holdExpiry = isCard
+    ? new Date(Date.now() + 15 * 60 * 1000)
+    : isBankHold
+      ? new Date(Date.now() + 60 * 60 * 1000)
+      : null;
+  const initialStatus =
+    isCard || isBankHold
+      ? "payment_pending"
+      : requiresCodDeposit(data.payment_method, total)
+        ? "awaiting_bank_slip"
+        : "pending";
 
   // ATOMICALLY DEDUCT / HOLD STOCK UPFRONT
   await deductStock(dbStockTargets);
@@ -422,11 +501,12 @@ export async function placeOrderAction(rawInput: PlaceOrderInput) {
         total,
         payment_method: data.payment_method,
         status: initialStatus,
-        stock_reserved: isCard,
+        stock_reserved: isCard || isBankHold,
         hold_expires_at: holdExpiry ? holdExpiry.toISOString() : null,
+        bank_slip_reference: isBankHold ? normalizedPhone : null,
         ...(data.idempotency_key ? { idempotency_key: data.idempotency_key } : {}),
       })
-      .select("id,order_number,total,status,payment_method")
+      .select("id,order_number,total,status,payment_method,hold_expires_at")
       .single();
 
     if (orderErr) {
@@ -434,40 +514,17 @@ export async function placeOrderAction(rawInput: PlaceOrderInput) {
         await restoreStock(dbStockTargets);
         const { data: existing } = await supabase
           .from("orders")
-          .select("order_number,subtotal,delivery_fee,discount_amount,coupon_code,total,status,payment_method")
+          .select("id,order_number,subtotal,delivery_fee,discount_amount,coupon_code,total,status,payment_method,hold_expires_at")
           .eq("idempotency_key", data.idempotency_key!)
           .single();
-        return {
-          order_number: existing!.order_number as string,
-          subtotal: Number(existing!.subtotal),
-          delivery_fee: Number(existing!.delivery_fee),
-          discount_amount: Number(existing!.discount_amount),
-          coupon_code: existing!.coupon_code as string | null,
-          total: Number(existing!.total),
-          status: existing!.status as string,
-          payment_method: existing!.payment_method as "cod" | "bank" | "card",
-        };
+        return mapExistingOrderToResult(existing);
       }
       throw orderErr;
     }
 
     createdOrder = orderRow;
 
-    const { error: itemsErr } = await supabase.from("order_items").insert(
-      verifiedLines.map((l) => ({
-        order_id: createdOrder.id,
-        product_id: l.product_id,
-        variant_id: l.variant_id,
-        product_slug: l.product_slug,
-        product_name: l.product_name,
-        stitching: l.stitching,
-        size: l.size,
-        unit_price: l.unit_price,
-        quantity: l.quantity,
-        image_url: l.image_url,
-      })),
-    );
-    if (itemsErr) throw itemsErr;
+    await insertOrderItemsRows(supabase, createdOrder.id, verifiedLines);
 
     if (normalizedCoupon) {
       const { data: incOk, error: incErr } = await supabase.rpc("increment_coupon_usage", {
@@ -531,15 +588,16 @@ export async function placeOrderAction(rawInput: PlaceOrderInput) {
     verifiedLines.flatMap((l) => l.categories),
   );
 
-  // Send confirmation email immediately only for non-card orders.
-  // Card orders get their confirmation email sent via the webhook upon payment.succeeded!
-  if (!isCard && cleanEmail) {
+  // Send confirmation email immediately only for non-card and non-held-bank orders.
+  // Card orders get their email on webhook payment.succeeded; bank orders get theirs once proof is uploaded.
+  if (!isCard && !isBankHold && cleanEmail) {
     after(() =>
       notifyOrderPlaced(createdOrder.id).catch((e) => console.error("[order] Email notification failed:", e)),
     );
   }
 
   return {
+    order_id: createdOrder.id as string,
     order_number: createdOrder.order_number as string,
     subtotal,
     delivery_fee: deliveryFee,
@@ -549,7 +607,420 @@ export async function placeOrderAction(rawInput: PlaceOrderInput) {
     status: createdOrder.status as string,
     payment_method: createdOrder.payment_method as "cod" | "bank" | "card",
     checkout_url: checkoutUrl,
+    hold_expires_at: (createdOrder.hold_expires_at as string | null) ?? null,
   };
+}
+
+export async function placeOrderWithBankProofAction(formData: FormData): Promise<PlaceOrderResult> {
+  const rawPayload = formData.get("payload");
+  if (typeof rawPayload !== "string") {
+    throw new Error("Invalid order payload.");
+  }
+  const parsedJson = JSON.parse(rawPayload);
+  const data = placeOrderSchema.parse({ ...parsedJson, payment_method: "bank" });
+
+  const file = formData.get("file");
+  if (!file || !(file instanceof Blob) || file.size === 0) {
+    throw new Error("Please upload your payment proof (image or PDF under 1 MB) before placing your order.");
+  }
+
+  const reqHeaders = await headers();
+  enforceRateLimit(getClientIp({ headers: reqHeaders }), ORDER_RATE_LIMIT);
+
+  const supabase = getSupabaseAdmin();
+  const normalizedPhone = await normalizeSlPhone(data.phone);
+  const cleanEmail = data.email ? data.email.trim().toLowerCase() : null;
+  const { id: authenticatedUserId } = await getAuthenticatedUser();
+
+  if (data.idempotency_key) {
+    const { data: existing } = await supabase
+      .from("orders")
+      .select("id,order_number,subtotal,delivery_fee,discount_amount,coupon_code,total,status,payment_method,hold_expires_at,payment_proof_path")
+      .eq("idempotency_key", data.idempotency_key)
+      .maybeSingle();
+    if (existing) {
+      if (existing.payment_proof_path || existing.status !== "payment_pending") {
+        return mapExistingOrderToResult(existing);
+      }
+      // Existing unpaid hold from same idempotency key: complete it with the uploaded proof
+      const attached = await attachProofToOrder({
+        orderId: existing.id as string,
+        orderNumber: existing.order_number as string,
+        phone: normalizedPhone,
+        file,
+      });
+      if (!attached.ok) {
+        throw new Error(attached.error);
+      }
+      return {
+        ...mapExistingOrderToResult(existing),
+        status: attached.status,
+        hold_expires_at: null,
+        sold_out_fallback: attached.sold_out_fallback,
+      };
+    }
+  }
+
+  const {
+    verifiedLines,
+    subtotal,
+    deliveryFee,
+    normalizedCoupon,
+    discountAmount,
+    total,
+    dbStockTargets,
+  } = await computeOrderPricing(data.items, data.coupon_code, {
+    phone: normalizedPhone,
+    email: cleanEmail,
+    user_id: authenticatedUserId,
+  });
+
+  const proof = await validateAndStorePaymentProof(file, data.idempotency_key || normalizedPhone);
+
+  let stockAvailable = true;
+  try {
+    await deductStock(dbStockTargets);
+  } catch {
+    stockAvailable = false;
+  }
+
+  let createdOrder: any = null;
+
+  try {
+    const { data: orderRow, error: orderErr } = await supabase
+      .from("orders")
+      .insert({
+        user_id: authenticatedUserId,
+        customer_name: data.name,
+        phone: normalizedPhone,
+        email: cleanEmail,
+        address: data.address,
+        city: data.city,
+        district: data.district,
+        postal_code: data.postal_code || null,
+        notes: data.note || null,
+        subtotal,
+        delivery_fee: deliveryFee,
+        coupon_code: normalizedCoupon,
+        discount_amount: discountAmount,
+        total,
+        payment_method: "bank",
+        status: stockAvailable ? "awaiting_bank_slip" : "processing_failed",
+        stock_reserved: false,
+        hold_expires_at: null,
+        bank_slip_reference: normalizedPhone,
+        payment_proof_path: proof.path,
+        payment_proof_mime: proof.mime,
+        ...(data.idempotency_key ? { idempotency_key: data.idempotency_key } : {}),
+      })
+      .select("id,order_number,total,status,payment_method")
+      .single();
+
+    if (orderErr) {
+      if (orderErr.code === "23505" && orderErr.message?.includes("idempotency_key")) {
+        if (stockAvailable) await restoreStock(dbStockTargets);
+        await removePaymentProofFile(proof.path);
+        const { data: existing } = await supabase
+          .from("orders")
+          .select("id,order_number,subtotal,delivery_fee,discount_amount,coupon_code,total,status,payment_method,hold_expires_at")
+          .eq("idempotency_key", data.idempotency_key!)
+          .single();
+        return mapExistingOrderToResult(existing);
+      }
+      throw orderErr;
+    }
+
+    createdOrder = orderRow;
+
+    await insertOrderItemsRows(supabase, createdOrder.id, verifiedLines);
+
+    if (stockAvailable && normalizedCoupon) {
+      const { data: incOk, error: incErr } = await supabase.rpc("increment_coupon_usage", {
+        p_code: normalizedCoupon,
+      });
+      if (incErr || !incOk) {
+        throw new Error("This promo code has reached its usage limit.");
+      }
+    }
+  } catch (err) {
+    if (stockAvailable) {
+      await restoreStock(dbStockTargets);
+    }
+    await removePaymentProofFile(proof.path);
+    if (createdOrder?.id) {
+      await supabase.from("order_items").delete().eq("order_id", createdOrder.id);
+      await supabase.from("orders").delete().eq("id", createdOrder.id);
+    }
+    if (stockAvailable && normalizedCoupon) {
+      try {
+        await supabase.rpc("decrement_coupon_usage", { p_code: normalizedCoupon });
+      } catch {
+        // non-blocking
+      }
+    }
+    throw err instanceof Error ? err : new Error("Could not place your order. Please try again.");
+  }
+
+  if (stockAvailable) {
+    revalidateCatalogCache(
+      verifiedLines.map((l) => l.product_slug),
+      verifiedLines.flatMap((l) => l.categories),
+    );
+    if (cleanEmail) {
+      after(() =>
+        notifyOrderPlaced(createdOrder.id).catch((e) => console.error("[order] Email notification failed:", e)),
+      );
+    }
+  } else {
+    after(() =>
+      notifyAdminRefundNeeded(
+        createdOrder.id,
+        normalizedPhone,
+        "Customer transferred money and uploaded bank payment proof at checkout, but one or more items sold out before order submission.",
+      ).catch((e) => console.error("[order] Admin refund notification failed:", e)),
+    );
+  }
+
+  return {
+    order_id: createdOrder.id as string,
+    order_number: createdOrder.order_number as string,
+    subtotal,
+    delivery_fee: deliveryFee,
+    discount_amount: discountAmount,
+    coupon_code: normalizedCoupon,
+    total: Number(createdOrder.total),
+    status: createdOrder.status as string,
+    payment_method: "bank",
+    hold_expires_at: null,
+    sold_out_fallback: !stockAvailable,
+  };
+}
+
+async function attachProofToOrder(params: {
+  orderId?: string | null;
+  orderNumber?: string | null;
+  phone?: string | null;
+  file: Blob;
+}): Promise<
+  | { ok: true; order_number: string; status: string; sold_out_fallback?: boolean }
+  | { ok: false; error: string }
+> {
+  const supabase = getSupabaseAdmin();
+  const { id: authenticatedUserId, email: authenticatedUserEmail } = await getAuthenticatedUser();
+
+  let query = supabase.from("orders").select("*, order_items(*)");
+  const cleanOrderId = params.orderId?.trim();
+  const rawOrderNum = params.orderNumber?.trim().toUpperCase().replace(/[^A-Z0-9-]/g, "");
+
+  if (cleanOrderId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cleanOrderId)) {
+    query = query.eq("id", cleanOrderId);
+  } else if (rawOrderNum) {
+    const normalizedNum = rawOrderNum.startsWith("ALM-")
+      ? rawOrderNum
+      : `ALM-${rawOrderNum.replace(/^ALM/, "")}`;
+    query = query.eq("order_number", normalizedNum);
+  } else {
+    return { ok: false, error: "Order reference is missing." };
+  }
+
+  const { data: order, error: fetchErr } = await query.maybeSingle();
+  if (fetchErr || !order) {
+    return { ok: false, error: "Order not found." };
+  }
+
+  let phoneMatches = false;
+  if (params.phone && SL_PHONE_REGEX.test(params.phone.replace(/[\s-]/g, ""))) {
+    const normalizedInputPhone = await normalizeSlPhone(params.phone);
+    phoneMatches = normalizedInputPhone === order.phone;
+  }
+
+  const isOwnerUser = Boolean(authenticatedUserId && order.user_id === authenticatedUserId);
+  const isOwnerEmail = Boolean(
+    authenticatedUserEmail && order.email && order.email.toLowerCase() === authenticatedUserEmail,
+  );
+  const hasCheckoutOrderToken = Boolean(cleanOrderId && cleanOrderId === order.id);
+
+  if (!isOwnerUser && !isOwnerEmail && !phoneMatches && !hasCheckoutOrderToken) {
+    return { ok: false, error: "You are not authorized to upload proof for this order." };
+  }
+
+  if (order.payment_method !== "bank") {
+    return { ok: false, error: "Payment proof upload is only applicable to bank transfer orders." };
+  }
+
+  if (
+    order.payment_proof_path &&
+    ["awaiting_bank_slip", "confirmed", "shipped", "delivered"].includes(order.status)
+  ) {
+    return {
+      ok: true,
+      order_number: order.order_number as string,
+      status: order.status as string,
+    };
+  }
+
+  if (["confirmed", "shipped", "delivered", "refunded", "partially_refunded"].includes(order.status)) {
+    return {
+      ok: false,
+      error: `This order is already ${String(order.status).replace(/_/g, " ")}.`,
+    };
+  }
+
+  const proof = await validateAndStorePaymentProof(params.file, String(order.order_number || order.id));
+
+  // Case A: Stock already deducted/reserved (active 1-hour hold or awaiting_bank_slip without proof)
+  if (
+    (order.status === "payment_pending" && order.stock_reserved === true) ||
+    order.status === "awaiting_bank_slip"
+  ) {
+    const { error: updateErr } = await supabase
+      .from("orders")
+      .update({
+        status: "awaiting_bank_slip",
+        stock_reserved: false,
+        hold_expires_at: null,
+        bank_slip_reference: order.phone,
+        payment_proof_path: proof.path,
+        payment_proof_mime: proof.mime,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", order.id);
+
+    if (updateErr) {
+      await removePaymentProofFile(proof.path);
+      return { ok: false, error: "Could not save your payment proof. Please try again." };
+    }
+
+    if (order.email) {
+      after(() =>
+        notifyOrderPlaced(order.id).catch((e) => console.error("[order] Email notification failed:", e)),
+      );
+    }
+
+    return {
+      ok: true,
+      order_number: order.order_number as string,
+      status: "awaiting_bank_slip",
+    };
+  }
+
+  // Case B: Hold expired / swept to cancelled (or unreserved payment_pending)
+  const stockItems = mapOrderItemsToStockTargets(order.order_items ?? []);
+  let stockReclaimed = false;
+  try {
+    if (stockItems.length > 0) {
+      await deductStock(stockItems);
+    }
+    stockReclaimed = true;
+  } catch {
+    stockReclaimed = false;
+  }
+
+  if (stockReclaimed) {
+    if (order.coupon_code && order.status === "cancelled") {
+      try {
+        await supabase.rpc("increment_coupon_usage", { p_code: order.coupon_code });
+      } catch {
+        // non-blocking for paid customer
+      }
+    }
+
+    revalidateCatalogCache(stockItems.map((s) => s.slug));
+
+    const { error: updateErr } = await supabase
+      .from("orders")
+      .update({
+        status: "awaiting_bank_slip",
+        stock_reserved: false,
+        hold_expires_at: null,
+        bank_slip_reference: order.phone,
+        payment_proof_path: proof.path,
+        payment_proof_mime: proof.mime,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", order.id);
+
+    if (updateErr) {
+      if (stockItems.length > 0) await restoreStock(stockItems);
+      await removePaymentProofFile(proof.path);
+      return { ok: false, error: "Could not save your payment proof. Please try again." };
+    }
+
+    if (order.email) {
+      after(() =>
+        notifyOrderPlaced(order.id).catch((e) => console.error("[order] Email notification failed:", e)),
+      );
+    }
+
+    return {
+      ok: true,
+      order_number: order.order_number as string,
+      status: "awaiting_bank_slip",
+    };
+  }
+
+  // Paid-but-sold-out fallback: keep proof and alert Admin for refund/replacement
+  const { error: failErr } = await supabase
+    .from("orders")
+    .update({
+      status: "processing_failed",
+      stock_reserved: false,
+      hold_expires_at: null,
+      bank_slip_reference: order.phone,
+      payment_proof_path: proof.path,
+      payment_proof_mime: proof.mime,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", order.id);
+
+  if (failErr) {
+    await removePaymentProofFile(proof.path);
+    return { ok: false, error: "Could not save your payment proof. Please contact us on WhatsApp." };
+  }
+
+  after(() =>
+    notifyAdminRefundNeeded(
+      order.id,
+      order.phone,
+      "Customer uploaded bank payment proof after the 1-hour hold expired, and one or more items sold out during the lapse.",
+    ).catch((e) => console.error("[order] Admin refund notification failed:", e)),
+  );
+
+  return {
+    ok: true,
+    order_number: order.order_number as string,
+    status: "processing_failed",
+    sold_out_fallback: true,
+  };
+}
+
+export async function submitBankPaymentProofAction(
+  formData: FormData,
+): Promise<
+  | { ok: true; order_number: string; status: string; sold_out_fallback?: boolean }
+  | { ok: false; error: string }
+> {
+  try {
+    const reqHeaders = await headers();
+    enforceRateLimit(getClientIp({ headers: reqHeaders }), BANK_PROOF_RATE_LIMIT);
+
+    const file = formData.get("file");
+    if (!file || !(file instanceof Blob) || file.size === 0) {
+      return { ok: false, error: "Please select an image or PDF payment proof under 1 MB." };
+    }
+
+    const orderId = typeof formData.get("orderId") === "string" ? String(formData.get("orderId")) : null;
+    const orderNumber =
+      typeof formData.get("orderNumber") === "string" ? String(formData.get("orderNumber")) : null;
+    const phone = typeof formData.get("phone") === "string" ? String(formData.get("phone")) : null;
+
+    return await attachProofToOrder({ orderId, orderNumber, phone, file });
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Could not upload payment proof. Please try again.",
+    };
+  }
 }
 
 export async function initiateCardCheckoutAction(rawInput: PlaceOrderInput): Promise<PlaceOrderResult> {
@@ -572,6 +1043,9 @@ export type OrderConfirmationResult = {
   discountAmount: number;
   total: number;
   status: string;
+  hold_expires_at: string | null;
+  payment_proof_submitted: boolean;
+  bank_slip_reference: string | null;
   lines: Array<{
     key: string;
     slug: string;
@@ -614,6 +1088,11 @@ export async function getOrderConfirmationAction(
     discountAmount: Number(order.discount_amount ?? 0),
     total: Number(order.total ?? 0),
     status: order.status,
+    hold_expires_at: order.hold_expires_at ?? null,
+    payment_proof_submitted: Boolean(
+      order.payment_proof_path || order.payment_proof_confirmed_at || order.payment_proof_purged_at,
+    ),
+    bank_slip_reference: order.bank_slip_reference ?? order.phone ?? null,
     lines: (order.order_items ?? []).map((item: any) => ({
       key: `${item.product_slug}-${item.stitching}-${item.size ?? "none"}`,
       slug: item.product_slug,
@@ -628,6 +1107,7 @@ export async function getOrderConfirmationAction(
 }
 
 export type TrackedOrderResult = {
+  id: string;
   order_number: string;
   customer_name: string;
   phone: string;
@@ -643,6 +1123,9 @@ export type TrackedOrderResult = {
   refund_amount: number;
   payment_method: "cod" | "bank" | "card";
   status: string;
+  hold_expires_at: string | null;
+  payment_proof_submitted: boolean;
+  bank_slip_reference: string | null;
   created_at: string;
   items: Array<{
     id: string;
@@ -693,6 +1176,7 @@ export async function lookupOrderAction(input: {
   }
 
   return {
+    id: order.id,
     order_number: order.order_number,
     customer_name: order.customer_name,
     phone: order.phone,
@@ -708,6 +1192,11 @@ export async function lookupOrderAction(input: {
     refund_amount: Number(order.refund_amount ?? 0),
     payment_method: order.payment_method,
     status: order.status,
+    hold_expires_at: order.hold_expires_at ?? null,
+    payment_proof_submitted: Boolean(
+      order.payment_proof_path || order.payment_proof_confirmed_at || order.payment_proof_purged_at,
+    ),
+    bank_slip_reference: order.bank_slip_reference ?? order.phone ?? null,
     created_at: order.created_at,
     items: (order.order_items ?? []).map((item: any) => ({
       id: item.id,

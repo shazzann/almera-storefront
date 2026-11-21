@@ -139,6 +139,13 @@ export function OrderDetail({ id }: { id: string | null }) {
               <span className="text-lg font-semibold tabular-nums">{formatLKR(balance)}</span>
             </div>
           )}
+          {order.payment_method === "bank" && (
+            <p className="mt-2.5 text-[0.88rem] text-ink/70">
+              Expected Reference (Phone):{" "}
+              <span className="font-mono font-semibold tabular-nums">{order.phone}</span>
+            </p>
+          )}
+          <PaymentProofBlock order={order} />
           {order.bank_slip_reference && <p className="mt-2.5 text-[0.88rem] text-ink/65">Slip reference: {order.bank_slip_reference}</p>}
           {order.advance_deposit_note && <p className="mt-1 text-[0.88rem] text-ink/65">{order.advance_deposit_note}</p>}
           {order.refund_reason && <p className="mt-1 text-[0.88rem] text-ink/65">Refund reason: {order.refund_reason}</p>}
@@ -291,12 +298,81 @@ function ConfirmBody({ body, confirm, onConfirm, busy, danger }: { body: string;
   );
 }
 
+function PaymentProofBlock({ order, compact = false }: { order: Order; compact?: boolean }) {
+  if (order.payment_proof_url) {
+    const isPdf =
+      order.payment_proof_mime === "application/pdf" ||
+      order.payment_proof_path?.toLowerCase().endsWith(".pdf");
+
+    if (isPdf) {
+      return (
+        <div className="mt-3 rounded-xl border border-gold/45 bg-gold/10 p-3">
+          <p className="text-xs font-semibold tracking-wider text-gold-deep uppercase">
+            Uploaded Payment Proof (PDF)
+          </p>
+          <a
+            href={order.payment_proof_url}
+            target="_blank"
+            rel="noreferrer"
+            className="btn btn-primary mt-2 inline-flex min-h-10 px-4 py-2 text-xs"
+          >
+            Open PDF Payment Proof
+          </a>
+        </div>
+      );
+    }
+
+    return (
+      <div className="mt-3 rounded-xl border border-line bg-mist/40 p-3">
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <span className="text-xs font-semibold tracking-wider text-ink/70 uppercase">
+            Uploaded Payment Proof
+          </span>
+          <a
+            href={order.payment_proof_url}
+            target="_blank"
+            rel="noreferrer"
+            className="text-xs font-medium text-sage-deep underline underline-offset-4"
+          >
+            Open full size ↗
+          </a>
+        </div>
+        <a href={order.payment_proof_url} target="_blank" rel="noreferrer" className="block">
+          <img
+            src={order.payment_proof_url}
+            alt={`Payment proof for ${order.order_number}`}
+            className={`${compact ? "max-h-48" : "max-h-80"} w-auto rounded-xl border border-line bg-ivory object-contain`}
+          />
+        </a>
+      </div>
+    );
+  }
+
+  if (order.payment_proof_purged_at) {
+    return (
+      <p className="mt-2.5 rounded-xl bg-mist px-3 py-2 text-[0.82rem] text-ink/65">
+        Payment proof was verified and automatically purged after 10 days.
+      </p>
+    );
+  }
+
+  if (order.payment_method === "bank" && order.status === "payment_pending") {
+    return (
+      <p className="mt-2.5 rounded-xl bg-gold/10 px-3 py-2 text-[0.82rem] text-gold-deep">
+        Customer is within their 1-hour window to upload payment proof.
+      </p>
+    );
+  }
+
+  return null;
+}
+
 function DepositForm({ order, onDone }: { order: Order; onDone: () => void }) {
   const { source, run } = useAdmin();
   const total = num(order.total);
   const existing = num(order.advance_deposit);
   const [amount, setAmount] = useState(String(existing > 0 ? existing : order.payment_method === "cod" ? Math.min(COD_MIN_DEPOSIT, total) : total));
-  const [reference, setReference] = useState(order.bank_slip_reference ?? "");
+  const [reference, setReference] = useState(order.bank_slip_reference || order.phone || "");
   const [note, setNote] = useState(order.advance_deposit_note ?? "");
   const [confirmOrder, setConfirmOrder] = useState(["pending", "awaiting_bank_slip"].includes(order.status));
   const [busy, setBusy] = useState(false);
@@ -316,6 +392,7 @@ function DepositForm({ order, onDone }: { order: Order; onDone: () => void }) {
 
   return (
     <div className="space-y-4 p-5">
+      {order.payment_proof_url && <PaymentProofBlock order={order} compact />}
       <Field label="Amount received" error={tooMuch ? `This can't be more than the order total of ${formatLKR(total)}.` : undefined}>
         <NumberInput value={amount} onChange={setAmount} prefix="Rs." />
       </Field>

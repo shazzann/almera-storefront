@@ -33,6 +33,12 @@ export type AccountOrder = {
   district: string;
   postal_code: string | null;
   notes: string | null;
+  hold_expires_at?: string | null;
+  payment_proof_path?: string | null;
+  payment_proof_mime?: string | null;
+  bank_slip_reference?: string | null;
+  payment_proof_confirmed_at?: string | null;
+  payment_proof_purged_at?: string | null;
   order_items: AccountItem[];
 };
 

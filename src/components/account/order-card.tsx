@@ -8,8 +8,17 @@ import { useAccount } from "./context";
 import { formatDate, num, paymentNeeded, pieceCount, statusOf } from "./order-status";
 import type { AccountOrder } from "./types";
 
-export function StatusBadge({ status }: { status: string }) {
-  const { label, tone } = statusOf(status);
+export function StatusBadge({
+  status,
+  order,
+}: {
+  status: string;
+  order?: Pick<
+    AccountOrder,
+    "payment_method" | "payment_proof_path" | "payment_proof_confirmed_at" | "payment_proof_purged_at"
+  >;
+}) {
+  const { label, tone } = statusOf(status, order);
   return <span className={`inline-flex shrink-0 items-center rounded-full px-2.5 py-1 text-[0.75rem] font-semibold whitespace-nowrap ${tone}`}>{label}</span>;
 }
 
@@ -37,7 +46,7 @@ export function OrderCard({ order }: { order: AccountOrder }) {
         <span className="min-w-0 flex-1 pl-1.5">
           <span className="flex items-center justify-between gap-2">
             <span className="min-w-0 truncate font-semibold tabular-nums">{order.order_number}</span>
-            <StatusBadge status={order.status} />
+            <StatusBadge status={order.status} order={order} />
           </span>
           <span className="mt-0.5 block text-[0.85rem] text-ink/60">{formatDate(order.created_at)} · {pieces} {pieces === 1 ? "piece" : "pieces"}</span>
           <span className="mt-1.5 flex items-center justify-between gap-2">
@@ -46,9 +55,19 @@ export function OrderCard({ order }: { order: AccountOrder }) {
           </span>
         </span>
       </div>
-      {payment && (
+      {payment === "bank_upload" && (
         <span className="mt-3 block rounded-xl bg-gold/15 px-3 py-2 text-[0.88rem] font-medium text-gold-deep">
-          {payment === "deposit" ? "Send your deposit to confirm this order" : "Send your payment slip to confirm this order"}
+          Upload payment proof (1-hour window)
+        </span>
+      )}
+      {payment === "bank_verifying" && (
+        <span className="mt-3 block rounded-xl bg-sage-soft/60 px-3 py-2 text-[0.88rem] font-medium text-sage-deep">
+          Payment slip uploaded · awaiting verification
+        </span>
+      )}
+      {payment === "deposit" && (
+        <span className="mt-3 block rounded-xl bg-gold/15 px-3 py-2 text-[0.88rem] font-medium text-gold-deep">
+          Send your deposit to confirm this order
         </span>
       )}
     </Link>

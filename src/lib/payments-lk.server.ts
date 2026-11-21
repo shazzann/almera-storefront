@@ -167,15 +167,27 @@ export async function sweepExpiredStockHolds(): Promise<{
   const supabase = getSupabaseAdmin();
   const now = new Date().toISOString();
 
-  // Find all unpaid orders past their 15-minute hold where stock is still marked reserved
-  const { data: expiredOrders, error } = await supabase
+  // Find all unpaid orders past their hold window where stock is still marked reserved
+  let { data: expiredOrders, error } = await supabase
     .from("orders")
     .select("*, order_items(*)")
     .eq("status", "payment_pending")
     .is("payment_id", null)
+    .is("payment_proof_path", null)
     .eq("stock_reserved", true)
     .lte("hold_expires_at", now)
     .limit(50);
+
+  if (error?.code === "42703") {
+    ({ data: expiredOrders, error } = await supabase
+      .from("orders")
+      .select("*, order_items(*)")
+      .eq("status", "payment_pending")
+      .is("payment_id", null)
+      .eq("stock_reserved", true)
+      .lte("hold_expires_at", now)
+      .limit(50));
+  }
 
   if (error || !expiredOrders) {
     console.error("[stock-hold] Failed to fetch expired stock holds:", error);
